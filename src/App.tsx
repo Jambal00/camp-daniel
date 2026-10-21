@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { GUEST_TABS, ownerTabs, TabBar } from './components/TabBar';
 import { Toaster } from './components/Toast';
 import { MODE, store, useData } from './data';
@@ -19,11 +20,31 @@ import { EditSection, OwnerGuide } from './screens/owner/OwnerGuide';
 import { OwnerHome } from './screens/owner/OwnerHome';
 import { People } from './screens/owner/People';
 
+/** Loading screen that offers a way out if it takes too long. */
+function Loading() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setSlow(true), 10000);
+    return () => window.clearTimeout(t);
+  }, []);
+  return (
+    <main className="screen">
+      <div className="muted">Loading Camp Daniel…</div>
+      {slow && (
+        <>
+          <div className="callout">This is taking longer than usual. A reload usually fixes it, especially right after an update.</div>
+          <button className="btn" onClick={() => window.location.reload()}>Reload</button>
+        </>
+      )}
+    </main>
+  );
+}
+
 export default function App() {
   const data = useData();
   switch (data.status) {
     case 'loading':
-      return <div className="screen muted">Loading Camp Daniel…</div>;
+      return <Loading />;
     case 'signed-out':
       return <SignIn />;
     case 'not-invited':
@@ -33,7 +54,9 @@ export default function App() {
     case 'error':
       return (
         <main className="screen">
-          <div className="alert">Something went wrong loading Camp Daniel: {data.message}</div>
+          <h1 className="title">Couldn't load Camp Daniel</h1>
+          <div className="alert">{data.message}</div>
+          <button className="btn" onClick={() => window.location.reload()}>Reload</button>
           <SignOutButton />
         </main>
       );

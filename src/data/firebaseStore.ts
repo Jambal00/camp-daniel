@@ -38,6 +38,28 @@ import type { Booking, CabinSettings, GuideSection, MessageTemplate, Person, Sna
 
 const OTHER = '__other__';
 
+function isDenied(e: unknown) {
+  return (e as { code?: string })?.code === 'permission-denied';
+}
+
+/** Fail with a readable message instead of waiting forever. */
+function withTimeout<T>(p: Promise<T>, step: string, ms = 20000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = window.setTimeout(() => reject(new Error(`Firebase didn't answer while ${step}. Check your connection and tap Reload.`)), ms);
+    p.then(
+      (v) => {
+        window.clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        window.clearTimeout(t);
+        const code = (e as { code?: string })?.code;
+        reject(code && code !== 'permission-denied' ? Object.assign(new Error(`Firebase error while ${step}: ${code}`), { code }) : e);
+      },
+    );
+  });
+}
+
 type Parts = {
   people: Person[];
   self: Person | null;
@@ -77,34 +99,37 @@ export class FirebaseStore implements DataStore {
 
   /** Work out who this is, set up the cabin on an owner's first visit, and start listening. */
   async start(): Promise<StartResult> {
-    // Owners are whoever the security rules allow to write owner-only data.
-    // We find out by trying to read the owners-only secrets doc.
+    // Owners are whoever the security rules let read the owners-only secrets doc.
     try {
-      await getDoc(doc(db, 'secrets', 'cabin'));
+      await withTimeout(getDoc(doc(db, 'secrets', 'cabin')), 'checking whether you are an owner');
       this.isOwner = true;
-    } catch {
+    } catch (e) {
+      if (!isDenied(e)) throw e;
       this.isOwner = false;
     }
 
     if (this.isOwner) {
-      await this.ensureOwnerSetup();
+      await withTimeout(this.ensureOwnerSetup(), 'setting up the cabin');
     } else {
-      let me;
       try {
-        me = await getDoc(doc(db, 'people', this.email));
-      } catch {
-        return 'not-invited';
+        const me = await withTimeout(getDoc(doc(db, 'people', this.email)), 'checking the guest list');
+        if (!me.exists()) return 'not-invited';
+      } catch (e) {
+        if (isDenied(e)) return 'not-invited';
+        throw e;
       }
-      if (!me.exists()) return 'not-invited';
-      const settings = await getDoc(doc(db, 'settings', 'cabin')).catch(() => null);
-      if (!settings?.exists()) return 'not-set-up';
+      const settings = await withTimeout(getDoc(doc(db, 'settings', 'cabin')), 'loading cabin settings');
+      if (!settings.exists()) return 'not-set-up';
     }
 
     this.listen();
-    await new Promise<void>((resolve) => {
-      const check = () => (this.parts.settings ? resolve() : window.setTimeout(check, 50));
-      check();
-    });
+    await withTimeout(
+      new Promise<void>((resolve) => {
+        const check = () => (this.parts.settings ? resolve() : window.setTimeout(check, 50));
+        check();
+      }),
+      'loading the calendar',
+    );
     return 'ready';
   }
 

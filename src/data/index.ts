@@ -56,7 +56,15 @@ export function useData(): DataState {
     let alive = true;
 
     (async () => {
-      const [{ watchSignIn }, { FirebaseStore }] = await Promise.all([import('./firebase'), import('./firebaseStore')]);
+      let mods;
+      try {
+        mods = await Promise.all([import('./firebase'), import('./firebaseStore')]);
+      } catch {
+        // Usually a stale copy of the app after an update: reloading fetches the new one.
+        if (alive) setState({ status: 'error', message: 'Camp Daniel was just updated. Tap Reload to get the new version.' });
+        return;
+      }
+      const [{ watchSignIn }, { FirebaseStore }] = mods;
       stopAuth = watchSignIn(async (email, name) => {
         stopStore?.();
         stopStore = undefined;
@@ -84,7 +92,14 @@ export function useData(): DataState {
           };
           setState({ status: 'ready', snap: await fs.load(), meId: email });
         } catch (e) {
-          setState({ status: 'error', message: e instanceof Error ? e.message : String(e) });
+          const code = (e as { code?: string })?.code;
+          const message =
+            code === 'permission-denied'
+              ? 'Firebase said no (permission denied). The security rules may not be published yet.'
+              : e instanceof Error
+                ? e.message
+                : String(e);
+          if (alive) setState({ status: 'error', message });
         }
       });
     })();
