@@ -224,3 +224,17 @@ textarea.input { resize: vertical; line-height: 1.45; }
 @media (prefers-reduced-motion: no-preference) {
   .day, .btn { transition: background-color .12s, border-color .12s, color .12s; }
 }
+
+/* Portrait only. Android home-screen apps lock via the manifest; iPhone can't
+   lock a web app, so on a phone turned sideways we ask the person to turn it back.
+   The app stays loaded underneath, so nothing typed is lost. */
+@media (orientation: landscape) and (max-height: 500px) {
+  #root { display: none; }
+  body::before {
+    content: 'Turn your phone upright to use Camp Daniel';
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 24px; background: var(--blue); color: #fff;
+    font: 700 20px var(--body);
+  }
+}
