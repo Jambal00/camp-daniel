@@ -93,7 +93,7 @@ export function OwnerCalendar() {
           <MonthCalendar look={look} onPick={pick} />
           <div className="legend">
             <span className="t-owner"><i className="sw" style={{ background: 'var(--tc)' }} />Us</span>
-            <span className="t-kids"><i className="sw" style={{ background: 'var(--tc)' }} />Kids &amp; friends</span>
+            <span className="t-kids"><i className="sw" style={{ background: 'var(--tc)' }} />Kids</span>
             <span className="t-friends"><i className="sw" style={{ background: 'var(--tc)' }} />Friends &amp; family</span>
             <span><i className="sw" style={{ border: '2px dashed var(--muted)' }} />Pending</span>
           </div>

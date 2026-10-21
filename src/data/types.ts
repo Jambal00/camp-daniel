@@ -5,7 +5,7 @@ export type Tier = 'owner' | 'kids' | 'friends';
 
 export const TIER_LABEL: Record<Tier, string> = {
   owner: 'Us',
-  kids: 'Kids & friends',
+  kids: 'Kids',
   friends: 'Friends & family',
 };
 
