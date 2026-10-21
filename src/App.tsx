@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { GUEST_TABS, ownerTabs, TabBar } from './components/TabBar';
 import { Toaster } from './components/Toast';
+import { UpdateBanner, VersionLabel } from './components/UpdateBanner';
 import { MODE, store, useData } from './data';
 import { NotInvited, SignIn, SignOutButton } from './screens/SignIn';
 import { TIER_LABEL } from './data/types';
@@ -30,10 +31,11 @@ function Loading() {
   return (
     <main className="screen">
       <div className="muted">Loading Camp Daniel…</div>
+      <UpdateBanner />
       {slow && (
         <>
           <div className="callout">This is taking longer than usual. A reload usually fixes it, especially right after an update.</div>
-          <button className="btn" onClick={() => window.location.reload()}>Reload</button>
+          <button className="btn" onClick={() => window.location.replace(`${window.location.pathname}?v=${Date.now()}#/`)}>Reload</button>
         </>
       )}
     </main>
@@ -56,8 +58,9 @@ export default function App() {
         <main className="screen">
           <h1 className="title">Couldn't load Camp Daniel</h1>
           <div className="alert">{data.message}</div>
-          <button className="btn" onClick={() => window.location.reload()}>Reload</button>
+          <button className="btn" onClick={() => window.location.replace(`${window.location.pathname}?v=${Date.now()}#/`)}>Reload</button>
           <SignOutButton />
+          <VersionLabel />
         </main>
       );
     case 'ready':
@@ -110,6 +113,7 @@ function Shell() {
 
   return (
     <div className="app">
+      <UpdateBanner />
       {/* Sample-data mode only: switch between guest and owner. */}
       {MODE === 'local' ? <DevBar /> : null}
       {screen}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { toast } from '../../components/Toast';
 import { MODE, store } from '../../data';
 import { SignOutButton } from '../SignIn';
+import { VersionLabel } from '../../components/UpdateBanner';
 import { TIER_LABEL, type Tier } from '../../data/types';
 import { holding, mailHref, smsHref } from '../../lib/cabin';
 import { fromISO, today } from '../../lib/dates';
@@ -117,6 +118,7 @@ export function People() {
           );
         })}
         {MODE === 'firebase' && <SignOutButton />}
+        <VersionLabel />
       </main>
     </>
   );

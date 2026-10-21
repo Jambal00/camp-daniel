@@ -1,6 +1,7 @@
 import { MODE } from '../../data';
 import { smsHref } from '../../lib/cabin';
 import { SignOutButton } from '../SignIn';
+import { VersionLabel } from '../../components/UpdateBanner';
 import { useSession } from '../../lib/session';
 
 export function Contact() {
@@ -29,6 +30,7 @@ export function Contact() {
       ))}
       {MODE === 'firebase' && <p className="small muted" style={{ margin: '12px 0 0' }}>Signed in as {me.email}</p>}
       {MODE === 'firebase' && <SignOutButton />}
+      <VersionLabel />
     </main>
   );
 }

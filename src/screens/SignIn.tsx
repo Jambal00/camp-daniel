@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { UpdateBanner, VersionLabel } from '../components/UpdateBanner';
 
 type Fb = typeof import('../data/firebase');
 
@@ -83,6 +84,7 @@ export function SignIn() {
 
   return (
     <div className="app">
+      <UpdateBanner />
       <div className="band" style={{ paddingTop: 48, paddingBottom: 28 }}>
         <div className="eyebrow">#sconnicabin</div>
         <h1 className="title" style={{ color: '#fff', fontSize: 34 }}>Camp Daniel</h1>
@@ -143,6 +145,7 @@ export function SignIn() {
             <p className="small muted" style={{ margin: 0, textAlign: 'center' }}>Camp Daniel is invite-only. No passwords to remember.</p>
           </>
         )}
+        <VersionLabel />
       </main>
     </div>
   );
