@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
 import { toast } from '../../components/Toast';
-import { holding, isDayTaken, nextTripFor, openWeekends, rangeAvailable } from '../../lib/cabin';
-import { addDays, daysBetween, fmtDay, fmtRange, fmtRangeLong, onDayOf, today, type ISODate } from '../../lib/dates';
+import { holding, isDayTaken, nextTripFor, rangeAvailable } from '../../lib/cabin';
+import { daysBetween, fmtDay, fmtRange, fmtRangeLong, onDayOf, today, type ISODate } from '../../lib/dates';
 import { go, href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -13,8 +13,6 @@ export function Home() {
   const trip = nextTripFor(me.id, snap.bookings);
   const mine = snap.bookings.filter((b) => b.personId === me.id && (b.status === 'pending' || b.status === 'approved'));
   const others = holding(snap.bookings).filter((b) => b.personId !== me.id);
-  const featured = openWeekends(snap.bookings, 1)[0];
-  const openCount = openWeekends(snap.bookings, 8, t).filter((f) => daysBetween(t, f) < 31).length;
 
   const look = (d: ISODate): DayLook => {
     if (d < t) return { className: 'past', disabled: true };
@@ -77,19 +75,6 @@ export function Home() {
         </a>
       )}
 
-      {featured && (
-        <div className="highlight">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-            <div className="eyebrow" style={{ color: 'var(--orange-ink)' }}>Next open weekend</div>
-            <div className="title-sm" style={{ fontSize: 22 }}>{fmtRange(featured, addDays(featured, 2))}</div>
-            <div className="small" style={{ color: '#6b3a10' }}>
-              Fri to Sun{openCount > 1 ? ` · ${openCount} open weekends this month` : ''}
-            </div>
-          </div>
-          <button className="btn" onClick={() => request(featured, addDays(featured, 2))}>Request</button>
-        </div>
-      )}
-
       <section className="card" aria-label="Availability calendar">
         <MonthCalendar look={look} onPick={pick} noPast />
         <div className="legend">
@@ -99,7 +84,7 @@ export function Home() {
           {mine.some((b) => b.status === 'pending') && <span><i className="sw" style={{ border: '2px dashed var(--blue)' }} />Your request</span>}
         </div>
       </section>
-      {!sel.start && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>Or tap any open day to pick your own dates.</p>}
+      {!sel.start && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>Tap the day you'd arrive, then the day you'd head out.</p>}
 
       {sel.start && (
         <div className="bottom-action">
