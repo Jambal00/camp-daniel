@@ -9,6 +9,8 @@ import type { Booking, CabinSettings, GuideSection, MessageTemplate, Person, Sna
  * code changes.
  */
 export interface DataStore {
+  /** 'local' = sample data in this browser; 'firebase' = shared, signed-in data. */
+  readonly kind: 'local' | 'firebase';
   /** Current state of everything. */
   load(): Promise<Snapshot>;
   /** Called whenever data changes (another tab, or a realtime backend). */

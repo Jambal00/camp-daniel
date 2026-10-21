@@ -1,6 +1,7 @@
 import { GUEST_TABS, ownerTabs, TabBar } from './components/TabBar';
 import { Toaster } from './components/Toast';
-import { store, useSnapshot } from './data';
+import { MODE, store, useData } from './data';
+import { NotInvited, SignIn, SignOutButton } from './screens/SignIn';
 import { TIER_LABEL } from './data/types';
 import { needsDecision } from './lib/cabin';
 import { go, useRoute, type Route } from './lib/router';
@@ -19,13 +20,30 @@ import { OwnerHome } from './screens/owner/OwnerHome';
 import { People } from './screens/owner/People';
 
 export default function App() {
-  const snap = useSnapshot();
-  if (!snap) return <div className="screen muted">Loading Camp Daniel…</div>;
-  return (
-    <SessionProvider snap={snap}>
-      <Shell />
-    </SessionProvider>
-  );
+  const data = useData();
+  switch (data.status) {
+    case 'loading':
+      return <div className="screen muted">Loading Camp Daniel…</div>;
+    case 'signed-out':
+      return <SignIn />;
+    case 'not-invited':
+      return <NotInvited email={data.email} />;
+    case 'not-set-up':
+      return <NotInvited email={data.email} setUp />;
+    case 'error':
+      return (
+        <main className="screen">
+          <div className="alert">Something went wrong loading Camp Daniel: {data.message}</div>
+          <SignOutButton />
+        </main>
+      );
+    case 'ready':
+      return (
+        <SessionProvider snap={data.snap} meId={data.meId}>
+          <Shell />
+        </SessionProvider>
+      );
+  }
 }
 
 /** Development helper: switch who you are until real sign-in exists. */
@@ -67,8 +85,8 @@ function Shell() {
 
   return (
     <div className="app">
-      {/* Until real sign-in exists, the dev bar is how you switch between guest and owner. */}
-      {import.meta.env.VITE_HIDE_DEVBAR ? null : <DevBar />}
+      {/* Sample-data mode only: switch between guest and owner. */}
+      {MODE === 'local' ? <DevBar /> : null}
       {screen}
       {!fullScreen && <TabBar tabs={tabs} path={route.path} />}
       <Toaster />

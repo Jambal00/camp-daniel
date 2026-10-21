@@ -1,4 +1,6 @@
+import { MODE } from '../../data';
 import { smsHref } from '../../lib/cabin';
+import { SignOutButton } from '../SignIn';
 import { useSession } from '../../lib/session';
 
 export function Contact() {
@@ -25,6 +27,8 @@ export function Contact() {
           {!o.phone && o.email && <a className="btn outline" href={`mailto:${o.email}`}>Email</a>}
         </div>
       ))}
+      {MODE === 'firebase' && <p className="small muted" style={{ margin: '12px 0 0' }}>Signed in as {me.email}</p>}
+      {MODE === 'firebase' && <SignOutButton />}
     </main>
   );
 }

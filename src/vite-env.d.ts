@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** Set to "1" to hide the "Viewing as" bar (once real sign-in exists). */
-  readonly VITE_HIDE_DEVBAR?: string;
+  /** "local" = sample data in this browser with the "Viewing as" bar (npm run dev:demo). Otherwise Firebase. */
+  readonly VITE_DATA?: string;
 }

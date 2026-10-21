@@ -3,22 +3,100 @@ import { LocalStore } from './localStore';
 import type { DataStore } from './store';
 import type { Snapshot } from './types';
 
-// Swap this line when a real backend is ready, e.g. `new SupabaseStore(url, key)`.
-export const store: DataStore = new LocalStore();
+// Which backend to use:
+//   npm run dev        → Firebase (real sign-in, shared data)
+//   npm run dev:demo  → sample data kept in this browser, with the "Viewing as" bar
+export const MODE: 'local' | 'firebase' = import.meta.env.VITE_DATA === 'local' ? 'local' : 'firebase';
 
-/** Live snapshot of all data; re-renders whenever anything changes. */
-export function useSnapshot(): Snapshot | null {
-  const [snap, setSnap] = useState<Snapshot | null>(null);
+let current: DataStore | null = MODE === 'local' ? new LocalStore() : null;
+
+function backend(): DataStore {
+  if (!current) throw new Error('Not signed in yet');
+  return current;
+}
+
+/** The active backend. Screens call store.createBooking(...) etc. without caring which one it is. */
+export const store: DataStore = {
+  get kind() {
+    return MODE;
+  },
+  load: () => backend().load(),
+  subscribe: (fn) => backend().subscribe(fn),
+  createBooking: (i) => backend().createBooking(i),
+  updateBooking: (id, p) => backend().updateBooking(id, p),
+  addPerson: (i) => backend().addPerson(i),
+  updatePerson: (id, p) => backend().updatePerson(id, p),
+  updateGuideSection: (id, p) => backend().updateGuideSection(id, p),
+  updateTemplate: (id, p) => backend().updateTemplate(id, p),
+  updateSettings: (p) => backend().updateSettings(p),
+  reset: () => backend().reset?.() ?? Promise.resolve(),
+};
+
+export type DataState =
+  | { status: 'loading' }
+  | { status: 'signed-out' }
+  | { status: 'not-invited'; email: string }
+  | { status: 'not-set-up'; email: string }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; snap: Snapshot; meId: string | null };
+
+/** Sign-in state plus a live snapshot of all data the signed-in person may see. */
+export function useData(): DataState {
+  const [state, setState] = useState<DataState>({ status: 'loading' });
+
   useEffect(() => {
+    if (MODE === 'local') {
+      const s = current!;
+      s.load().then((snap) => setState({ status: 'ready', snap, meId: null }));
+      return s.subscribe((snap) => setState({ status: 'ready', snap, meId: null }));
+    }
+
+    let stopStore: (() => void) | undefined;
+    let stopAuth: (() => void) | undefined;
     let alive = true;
-    store.load().then((s) => alive && setSnap(s));
-    const off = store.subscribe((s) => setSnap(s));
+
+    (async () => {
+      const [{ watchSignIn }, { FirebaseStore }] = await Promise.all([import('./firebase'), import('./firebaseStore')]);
+      stopAuth = watchSignIn(async (email, name) => {
+        stopStore?.();
+        stopStore = undefined;
+        current = null;
+        if (!alive) return;
+        if (!email) {
+          setState({ status: 'signed-out' });
+          return;
+        }
+        setState({ status: 'loading' });
+        const fs = new FirebaseStore(email, name);
+        try {
+          const result = await fs.start();
+          if (!alive) return;
+          if (result !== 'ready') {
+            fs.stop();
+            setState({ status: result, email });
+            return;
+          }
+          current = fs;
+          const off = fs.subscribe((snap) => setState({ status: 'ready', snap, meId: email }));
+          stopStore = () => {
+            off();
+            fs.stop();
+          };
+          setState({ status: 'ready', snap: await fs.load(), meId: email });
+        } catch (e) {
+          setState({ status: 'error', message: e instanceof Error ? e.message : String(e) });
+        }
+      });
+    })();
+
     return () => {
       alive = false;
-      off();
+      stopAuth?.();
+      stopStore?.();
     };
   }, []);
-  return snap;
+
+  return state;
 }
 
 export * from './types';

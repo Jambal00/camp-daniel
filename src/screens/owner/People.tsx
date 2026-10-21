@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from '../../components/Toast';
-import { store } from '../../data';
+import { MODE, store } from '../../data';
+import { SignOutButton } from '../SignIn';
 import { TIER_LABEL, type Tier } from '../../data/types';
 import { holding, mailHref, smsHref } from '../../lib/cabin';
 import { fromISO, today } from '../../lib/dates';
@@ -18,16 +19,17 @@ export function People() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', tier: 'friends' as Tier });
   const [editId, setEditId] = useState<string | null>(null);
-  const [edit, setEdit] = useState({ email: '', phone: '' });
+  const [edit, setEdit] = useState({ name: '', email: '', phone: '' });
 
   const startEdit = (id: string) => {
     const p = snap.people.find((x) => x.id === id);
-    setEdit({ email: p?.email ?? '', phone: p?.phone ?? '' });
+    setEdit({ name: p?.name ?? '', email: p?.email ?? '', phone: p?.phone ?? '' });
     setEditId(id);
   };
   const saveEdit = async () => {
     if (!editId) return;
-    await store.updatePerson(editId, { email: edit.email.trim(), phone: edit.phone.trim() });
+    const name = edit.name.trim();
+    await store.updatePerson(editId, { ...(name ? { name, shortName: name.split(/\s+/)[0] } : {}), email: edit.email.trim(), phone: edit.phone.trim() });
     setEditId(null);
     toast('Contact details saved.');
   };
@@ -36,8 +38,12 @@ export function People() {
 
   const add = async () => {
     if (!form.name.trim()) return;
+    if (MODE === 'firebase' && !form.email.trim()) {
+      toast('Add their email. It is how they sign in.');
+      return;
+    }
     const name = form.name.trim();
-    await store.addPerson({ ...form, name, shortName: name.split(/\s+/)[0], email: form.email.trim(), phone: form.phone.trim() });
+    await store.addPerson({ ...form, name, shortName: name.split(/\s+/)[0], email: form.email.trim().toLowerCase(), phone: form.phone.trim() });
     setForm({ name: '', email: '', phone: '', tier: 'friends' });
     setAdding(false);
     toast(`Added ${name}. Send them an invite below.`);
@@ -86,8 +92,8 @@ export function People() {
                 {list.map((p) =>
                   editId === p.id ? (
                     <div key={p.id} className="list-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10, padding: '12px 0' }}>
-                      <div className="strong">{p.name}</div>
-                      <div className="field"><label htmlFor={`em-${p.id}`}>Email</label><input id={`em-${p.id}`} className="input" type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></div>
+                      <div className="field"><label htmlFor={`nm-${p.id}`}>Name</label><input id={`nm-${p.id}`} className="input" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>
+                      <div className="field"><label htmlFor={`em-${p.id}`}>Email</label><input id={`em-${p.id}`} className="input" type="email" value={edit.email} disabled={MODE === 'firebase'} onChange={(e) => setEdit({ ...edit, email: e.target.value })} />{MODE === 'firebase' && <span className="small muted">This is how they sign in. To change it, invite the new address.</span>}</div>
                       <div className="field"><label htmlFor={`ph-${p.id}`}>Mobile</label><input id={`ph-${p.id}`} className="input" type="tel" value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>
                       <div className="grid-2">
                         <button className="btn outline small" onClick={() => setEditId(null)}>Cancel</button>
@@ -110,6 +116,7 @@ export function People() {
             </section>
           );
         })}
+        {MODE === 'firebase' && <SignOutButton />}
       </main>
     </>
   );

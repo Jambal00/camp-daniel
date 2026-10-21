@@ -30,6 +30,7 @@ function uid(prefix: string) {
 
 /** Keeps everything in this browser's localStorage. Good for building and demos. */
 export class LocalStore implements DataStore {
+  readonly kind = 'local' as const;
   private state: Snapshot = read();
   private listeners = new Set<(s: Snapshot) => void>();
 

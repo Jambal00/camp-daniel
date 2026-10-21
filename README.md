@@ -15,11 +15,10 @@ npm run dev
 
 Open the address it prints (usually http://localhost:5173). To try it on your phone, use the "Network" address it prints while your phone is on the same Wi-Fi.
 
-## Trying both sides
+## Two ways to run it
 
-Until real sign-in exists, the dark bar at the top says **Viewing as**. Switch between Rick (a guest), Maddie or Tyler (kids), and Pete or Trisha (owners). **Reset sample data** puts everything back.
-
-Data lives in your browser for now (localStorage), so each browser has its own copy. Rick, Maddie and Tyler are made-up examples.
+- `npm run dev` uses **Firebase**: real sign-in (Google or an emailed link) and shared data. The first time an owner signs in, the cabin guide and settings are set up automatically.
+- `npm run dev:demo` uses **sample data kept in your browser**, with a "Viewing as" bar to switch between a guest (Rick, Maddie, Tyler, all made up) and an owner. Handy for trying ideas without touching real data.
 
 ## What works
 
@@ -44,9 +43,16 @@ src/
   screens/owner/    OwnerHome, Approve, OwnerCalendar, OwnerGuide, People
 ```
 
-## Connecting a real backend later
+## Data and security
 
-All reads and writes go through `DataStore` in `src/data/store.ts`. To move to Supabase, Firebase or Cloudflare D1, write one class that implements it (e.g. `SupabaseStore`) and change the single line in `src/data/index.ts`. No screen code changes. That step also brings real sign-in (email link), automatic emails, and replaces the "Viewing as" bar.
+All reads and writes go through `DataStore` in `src/data/store.ts`. `FirebaseStore` (`src/data/firebaseStore.ts`) is the live backend; `LocalStore` is the demo one.
+
+Who can see what is enforced by Firestore security rules, kept in the Firebase console (not in this repo, since they list the owner emails):
+- Guests see only their own stays, plus other stays as "Booked" with no names.
+- Door codes and Wi-Fi live in a separate record each guest can read only from noon on arrival day through departure day.
+- Only owners can approve, edit the guide, or invite people.
+
+Free-plan note: Firebase allows 5 sign-in-link emails a day. Google sign-in has no daily cap, and people stay signed in on their phones.
 
 ## Nothing private in this repo
 

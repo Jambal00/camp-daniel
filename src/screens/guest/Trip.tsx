@@ -13,9 +13,8 @@ function seenKey(id: string) {
 }
 
 export function Trip() {
-  const { snap, me } = useSession();
+  const { snap, me, host: pete } = useSession();
   const trip = nextTripFor(me.id, snap.bookings);
-  const pete = snap.people.find((p) => p.id === 'pete');
   const [firstView] = useState(() => {
     if (!trip) return false;
     try {
@@ -45,7 +44,7 @@ export function Trip() {
   const unlocked = accessUnlocked(trip);
   const days = daysBetween(today(), trip.start);
   const showFull = firstView || expanded;
-  const camerasText = `Hi Pete, it's ${me.shortName}. We're at Camp Daniel. Could you turn the cameras off? Thanks!`;
+  const camerasText = `Hi ${pete?.shortName ?? 'Pete'}, it's ${me.shortName}. We're at Camp Daniel. Could you turn the cameras off? Thanks!`;
   const headingOut = fillTemplate(snap.templates.find((t) => t.id === 'heading-out')?.body ?? '', {}) + (outNote.trim() ? `\n\n${outNote.trim()}` : '');
 
   return (
@@ -129,7 +128,7 @@ export function Trip() {
             </a>
             {pete?.phone && (
               <a className="list-row" href={smsHref(pete.phone, camerasText)}>
-                <span className="meta"><span className="strong">Ask Pete to turn off the cameras</span><span className="small muted">Opens a text to {pete.phone}</span></span>
+                <span className="meta"><span className="strong">Ask {pete.shortName} to turn off the cameras</span><span className="small muted">Opens a text to {pete.phone}</span></span>
                 <span aria-hidden="true">›</span>
               </a>
             )}
@@ -155,7 +154,7 @@ export function Trip() {
               toast('Thanks! Pete will see your note.');
             }}
           >
-            Text Pete we're heading out
+            Text {pete.shortName} we're heading out
           </a>
         </section>
       )}
