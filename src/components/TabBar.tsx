@@ -32,7 +32,7 @@ export const GUEST_TABS: Tab[] = [
 
 export function ownerTabs(pending: number): Tab[] {
   return [
-    { to: '/owner', label: 'Requests', icon: 'inbox', match: (p) => p[0] === 'owner' && (!p[1] || p[1] === 'approve'), badge: pending },
+    { to: '/owner', label: 'Requests', icon: 'inbox', match: (p) => p.length === 0 || (p[0] === 'owner' && (!p[1] || p[1] === 'approve')), badge: pending },
     { to: '/owner/calendar', label: 'Calendar', icon: 'calendar', match: (p) => p[1] === 'calendar' },
     { to: '/owner/guide', label: 'Guide', icon: 'edit', match: (p) => p[1] === 'guide' },
     { to: '/owner/people', label: 'People', icon: 'people', match: (p) => p[1] === 'people' },

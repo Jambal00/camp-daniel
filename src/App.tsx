@@ -104,7 +104,9 @@ function Shell() {
   const { snap, isOwner } = useSession();
   const screen = pickScreen(route, isOwner);
   const fullScreen = ['request', 'sent'].includes(route.path[0]) || route.path[1] === 'approve' || (route.path[0] === 'owner' && route.path[1] === 'guide' && route.path[2]);
-  const tabs = route.path[0] === 'owner' && isOwner ? ownerTabs(needsDecision(snap).length) : GUEST_TABS;
+  // Owners get the owner tabs on their home screen too; guest pages they open (guide preview) keep guest tabs.
+  const ownerArea = isOwner && (route.path[0] === 'owner' || route.path.length === 0);
+  const tabs = ownerArea ? ownerTabs(needsDecision(snap).length) : GUEST_TABS;
 
   return (
     <div className="app">
