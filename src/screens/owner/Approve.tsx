@@ -92,11 +92,9 @@ export function Approve({ id }: { id: string }) {
       </div>
 
       <div className="field">
-        <div className="label">3 · Send by</div>
-        <div className="row wrap">
-          <span className="chip solid" style={{ fontSize: 14, padding: '8px 14px' }}>In the app</span>
-          <span className="chip blue" style={{ fontSize: 14, padding: '8px 14px' }}>Email or text from your phone</span>
-          <span className="chip grey" style={{ fontSize: 14, padding: '8px 14px', border: '1px dashed #c9d1dc' }}>Automatic text · later</span>
+        <div className="label">3 · Send it</div>
+        <div className="small muted">
+          {p.shortName} sees the welcome note in the app as soon as you save. On the next screen you can also email or text it from your phone. Automatic texts are coming later.
         </div>
       </div>
 
