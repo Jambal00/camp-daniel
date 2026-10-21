@@ -52,6 +52,16 @@ export function Home() {
         <h1 className="title">Hi {me.shortName}! Come on up.</h1>
       </header>
 
+      {trip?.status === 'approved' && (
+        <a href={href('/trip')} className="card" style={{ textDecoration: 'none', color: 'inherit', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div>
+            <div className="eyebrow">Your stay</div>
+            <div className="strong" style={{ fontSize: 17 }}>{fmtRangeLong(trip.start, trip.end)}</div>
+          </div>
+          <span className="chip solid">Approved</span>
+        </a>
+      )}
+
       {trip?.status === 'pending' && (
         <a href={href('/trip')} className="card" style={{ textDecoration: 'none', color: 'inherit', gap: 8 }}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -84,10 +94,11 @@ export function Home() {
       <section className="card" aria-label="Availability calendar">
         <MonthCalendar look={look} onPick={pick} noPast />
         <div className="legend">
-          <span><i className="sw" style={{ background: 'var(--orange-tint)', border: '1px solid var(--orange-line)' }} />Open weekend</span>
           <span><i className="sw" style={{ background: '#fff', border: '1px solid var(--line)' }} />Open</span>
+          <span><i className="sw" style={{ background: '#fff', border: '1px solid var(--line)', boxShadow: 'inset 0 -3px 0 var(--orange-bright)' }} />Open weekend</span>
           <span><i className="sw" style={{ background: 'var(--booked)' }} />Booked</span>
-          {mine.length > 0 && <span><i className="sw" style={{ border: '2px dashed var(--blue)' }} />Yours</span>}
+          {mine.some((b) => b.status === 'approved') && <span><i className="sw" style={{ background: 'var(--blue)' }} />Your stay</span>}
+          {mine.some((b) => b.status === 'pending') && <span><i className="sw" style={{ border: '2px dashed var(--blue)' }} />Your request</span>}
         </div>
       </section>
       {!sel.start && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>Or tap any open day to pick your own dates.</p>}

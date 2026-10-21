@@ -147,12 +147,15 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .day.empty { visibility: hidden; }
 .day.past { color: var(--faint); background: transparent; border-color: transparent; cursor: default; }
 .day.booked { background: var(--booked); color: var(--faint); border-color: var(--booked); cursor: default; }
-.day.weekend { background: var(--orange-tint); border-color: var(--orange-line); color: var(--orange-ink); font-weight: 700; }
+/* Open weekends stay white (open) and get a small orange bar, so color never reads as "taken". */
+.day.weekend { color: var(--orange-ink); font-weight: 700; }
+.day.weekend::before { content: ''; position: absolute; bottom: 5px; width: 16px; height: 3px; border-radius: 2px; background: var(--orange-bright); }
+/* Your request (waiting): dashed outline. Your stay (approved): solid blue. */
 .day.mine { background: #eef3f9; border: 2px dashed var(--blue); color: var(--blue); font-weight: 700; }
-.day.mine.approved { border-style: solid; background: var(--blue-tint); }
+.day.mine.approved { border: 2px solid var(--blue); background: var(--blue); color: #fff; }
 .day.selected { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 700; }
 .day.in-range { background: var(--blue-tint); border-color: var(--blue-tint); color: var(--blue); font-weight: 700; }
-.day.today::after { content: ''; position: absolute; bottom: 4px; width: 4px; height: 4px; border-radius: 99px; background: currentColor; }
+.day.today::after { content: ''; position: absolute; top: 4px; width: 4px; height: 4px; border-radius: 99px; background: currentColor; }
 .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
 .sw { width: 11px; height: 11px; border-radius: 3px; display: inline-block; box-sizing: border-box; }
