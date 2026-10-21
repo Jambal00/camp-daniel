@@ -8,6 +8,7 @@ export function SignIn() {
   const [email, setEmail] = useState('');
   const [stage, setStage] = useState<'choose' | 'sent' | 'confirm' | 'working'>('choose');
   const [error, setError] = useState('');
+  const [pasted, setPasted] = useState('');
 
   useEffect(() => {
     import('../data/firebase').then(async (m) => {
@@ -52,6 +53,23 @@ export function SignIn() {
     }
   };
 
+  const pasteLink = async () => {
+    if (!fb) return;
+    const link = pasted.trim();
+    if (!fb.isEmailLink(link)) {
+      setError('That doesn’t look like the sign-in link. In the email, press and hold the link, choose Copy Link, then paste it here.');
+      return;
+    }
+    setError('');
+    setStage('working');
+    try {
+      await fb.completeEmailLink(email.trim().toLowerCase(), link);
+    } catch (e) {
+      setStage('sent');
+      setError(friendly(e));
+    }
+  };
+
   const confirm = async () => {
     if (!fb || !email.trim()) return;
     setStage('working');
@@ -78,6 +96,20 @@ export function SignIn() {
             <div className="title-sm">Check your email</div>
             <p className="muted" style={{ margin: 0 }}>We sent a sign-in link to <b>{email}</b>. Open it on this phone and you're in. It can take a minute, and sometimes lands in spam.</p>
             <button className="link-btn" onClick={() => setStage('choose')}>Use a different way</button>
+          </div>
+        )}
+
+        {stage === 'sent' && (
+          <div className="card">
+            <div className="strong">Using Camp Daniel from your home screen?</div>
+            <p className="small muted" style={{ margin: 0 }}>
+              On iPhone the link opens in Safari, not here. Instead, press and hold the link in the email, choose <b>Copy Link</b>, and paste it below.
+            </p>
+            <div className="field">
+              <label htmlFor="paste">Sign-in link</label>
+              <input id="paste" className="input" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="Paste the link from your email" autoComplete="off" />
+            </div>
+            <button className="btn block" onClick={pasteLink} disabled={!pasted.trim()}>Sign in here</button>
           </div>
         )}
 

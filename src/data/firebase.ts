@@ -63,9 +63,18 @@ export function rememberedEmail(): string {
   }
 }
 
-/** Finish signing in from the emailed link, then tidy the address bar. */
-export async function completeEmailLink(email: string) {
-  await signInWithEmailLink(auth, email, window.location.href);
+/** True when a pasted link is a Camp Daniel sign-in link. */
+export function isEmailLink(link: string): boolean {
+  return isSignInWithEmailLink(auth, link);
+}
+
+/**
+ * Finish signing in from the emailed link, then tidy the address bar.
+ * `link` lets someone paste the link in, for when the email opened a
+ * different browser than the home-screen app (iPhone keeps them separate).
+ */
+export async function completeEmailLink(email: string, link: string = window.location.href) {
+  await signInWithEmailLink(auth, email, link);
   try {
     localStorage.removeItem(EMAIL_KEY);
   } catch {
