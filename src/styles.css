@@ -147,9 +147,6 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .day.empty { visibility: hidden; }
 .day.past { color: var(--faint); background: transparent; border-color: transparent; cursor: default; }
 .day.booked { background: var(--booked); color: var(--faint); border-color: var(--booked); cursor: default; }
-/* Open weekends stay white (open) and get a small orange bar, so color never reads as "taken". */
-.day.weekend { color: var(--orange-ink); font-weight: 700; }
-.day.weekend::before { content: ''; position: absolute; bottom: 5px; width: 16px; height: 3px; border-radius: 2px; background: var(--orange-bright); }
 /* Your request (waiting): dashed outline. Your stay (approved): solid blue. */
 .day.mine { background: #eef3f9; border: 2px dashed var(--blue); color: var(--blue); font-weight: 700; }
 .day.mine.approved { border: 2px solid var(--blue); background: var(--blue); color: #fff; }

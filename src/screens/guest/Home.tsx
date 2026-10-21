@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
 import { toast } from '../../components/Toast';
-import { holding, inOpenWeekend, isDayTaken, nextTripFor, openWeekends, rangeAvailable } from '../../lib/cabin';
+import { holding, isDayTaken, nextTripFor, openWeekends, rangeAvailable } from '../../lib/cabin';
 import { addDays, daysBetween, fmtDay, fmtRange, fmtRangeLong, onDayOf, today, type ISODate } from '../../lib/dates';
 import { go, href } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -23,7 +23,6 @@ export function Home() {
     const m = mine.find((b) => onDayOf(d, b.start, b.end));
     if (m) return { className: `mine ${m.status}`, state: m.status === 'pending' ? 'your request' : 'your stay' };
     if (others.some((b) => onDayOf(d, b.start, b.end))) return { className: 'booked', state: 'booked' };
-    if (inOpenWeekend(d, snap.bookings)) return { className: 'weekend', state: 'open weekend' };
     return { className: '', state: 'open' };
   };
 
@@ -95,7 +94,6 @@ export function Home() {
         <MonthCalendar look={look} onPick={pick} noPast />
         <div className="legend">
           <span><i className="sw" style={{ background: '#fff', border: '1px solid var(--line)' }} />Open</span>
-          <span><i className="sw" style={{ background: '#fff', border: '1px solid var(--line)', boxShadow: 'inset 0 -3px 0 var(--orange-bright)' }} />Open weekend</span>
           <span><i className="sw" style={{ background: 'var(--booked)' }} />Booked</span>
           {mine.some((b) => b.status === 'approved') && <span><i className="sw" style={{ background: 'var(--blue)' }} />Your stay</span>}
           {mine.some((b) => b.status === 'pending') && <span><i className="sw" style={{ border: '2px dashed var(--blue)' }} />Your request</span>}
