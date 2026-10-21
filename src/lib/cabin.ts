@@ -1,6 +1,6 @@
 import type { Booking, CabinSettings, GuideSection, Person, Season, Snapshot } from '../data/types';
 import { TIER_RANK } from '../data/types';
-import { addDays, dayOfWeek, fmtRange, fromISO, nextFriday, nightsOf, rangesOverlap, seasonOf, today, type ISODate } from './dates';
+import { addDays, dayOfWeek, fmtRange, fromISO, nextFriday, nightsOf, onDayOf, rangesOverlap, seasonOf, today, type ISODate } from './dates';
 
 /** Bookings that actually hold the cabin. Pending requests do not. */
 export function holding(bookings: Booking[]): Booking[] {
@@ -8,11 +8,12 @@ export function holding(bookings: Booking[]): Booking[] {
 }
 
 export function bookingOn(date: ISODate, bookings: Booking[]): Booking | undefined {
-  return bookings.find((b) => b.start <= date && date < b.end);
+  return bookings.find((b) => onDayOf(date, b.start, b.end));
 }
 
-export function isNightTaken(date: ISODate, bookings: Booking[], ignoreId?: string): boolean {
-  return holding(bookings).some((b) => b.id !== ignoreId && b.start <= date && date < b.end);
+/** Is this day held by a stay, including its departure day? */
+export function isDayTaken(date: ISODate, bookings: Booking[], ignoreId?: string): boolean {
+  return holding(bookings).some((b) => b.id !== ignoreId && onDayOf(date, b.start, b.end));
 }
 
 export function rangeAvailable(start: ISODate, end: ISODate, bookings: Booking[], ignoreId?: string): boolean {
@@ -20,7 +21,7 @@ export function rangeAvailable(start: ISODate, end: ISODate, bookings: Booking[]
   return !holding(bookings).some((b) => b.id !== ignoreId && rangesOverlap(start, end, b.start, b.end));
 }
 
-/** Friday + Saturday nights both free. */
+/** Friday through Sunday all free (a Fri–Sun stay holds Sunday too). */
 export function isOpenWeekend(friday: ISODate, bookings: Booking[]): boolean {
   return rangeAvailable(friday, addDays(friday, 2), bookings);
 }

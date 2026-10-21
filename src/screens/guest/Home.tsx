@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
 import { toast } from '../../components/Toast';
-import { holding, inOpenWeekend, isNightTaken, nextTripFor, openWeekends, rangeAvailable } from '../../lib/cabin';
-import { addDays, daysBetween, fmtDay, fmtRange, fmtRangeLong, today, type ISODate } from '../../lib/dates';
+import { holding, inOpenWeekend, isDayTaken, nextTripFor, openWeekends, rangeAvailable } from '../../lib/cabin';
+import { addDays, daysBetween, fmtDay, fmtRange, fmtRangeLong, onDayOf, today, type ISODate } from '../../lib/dates';
 import { go, href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -20,17 +20,17 @@ export function Home() {
     if (d < t) return { className: 'past', disabled: true };
     if (sel.start && (d === sel.start || d === sel.end)) return { className: 'selected', state: 'selected' };
     if (sel.start && sel.end && d > sel.start && d < sel.end) return { className: 'in-range', state: 'selected' };
-    const m = mine.find((b) => b.start <= d && d < b.end);
+    const m = mine.find((b) => onDayOf(d, b.start, b.end));
     if (m) return { className: `mine ${m.status}`, state: m.status === 'pending' ? 'your request' : 'your stay' };
-    if (others.some((b) => b.start <= d && d < b.end)) return { className: 'booked', state: 'booked' };
+    if (others.some((b) => onDayOf(d, b.start, b.end))) return { className: 'booked', state: 'booked' };
     if (inOpenWeekend(d, snap.bookings)) return { className: 'weekend', state: 'open weekend' };
     return { className: '', state: 'open' };
   };
 
   const pick = (d: ISODate) => {
     if (!sel.start || sel.end || d <= sel.start) {
-      if (isNightTaken(d, snap.bookings)) {
-        toast('That night is already booked.');
+      if (isDayTaken(d, snap.bookings)) {
+        toast('That day is already booked.');
         return;
       }
       setSel({ start: d });

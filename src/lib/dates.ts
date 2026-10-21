@@ -36,8 +36,17 @@ export function nightsOf(start: ISODate, end: ISODate): ISODate[] {
   return out;
 }
 
+/**
+ * Do two stays share any day? Stays hold the cabin from arrival through the
+ * whole departure day, so a stay ending Monday blocks Monday for everyone else.
+ */
 export function rangesOverlap(aStart: ISODate, aEnd: ISODate, bStart: ISODate, bEnd: ISODate) {
-  return aStart < bEnd && bStart < aEnd;
+  return aStart <= bEnd && bStart <= aEnd;
+}
+
+/** Is this day inside a stay (arrival through departure day, inclusive)? */
+export function onDayOf(date: ISODate, start: ISODate, end: ISODate) {
+  return start <= date && date <= end;
 }
 
 export function dayOfWeek(s: ISODate): number {
