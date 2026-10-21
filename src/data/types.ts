@@ -1,0 +1,95 @@
+// Shared data shapes. Every backend (local sample data today, Supabase or
+// another service later) reads and writes exactly these.
+
+export type Tier = 'owner' | 'kids' | 'friends';
+
+export const TIER_LABEL: Record<Tier, string> = {
+  owner: 'Us',
+  kids: 'Kids & friends',
+  friends: 'Friends & family',
+};
+
+/** Dibs order: lower number gets priority when requests compete. */
+export const TIER_RANK: Record<Tier, number> = { owner: 0, kids: 1, friends: 2 };
+
+export interface Person {
+  id: string;
+  name: string;
+  shortName: string;
+  email: string;
+  phone: string;
+  tier: Tier;
+}
+
+export type BookingStatus = 'pending' | 'approved' | 'declined' | 'blocked';
+
+export interface Booking {
+  id: string;
+  personId: string;
+  /** Arrival date, YYYY-MM-DD. */
+  start: string;
+  /** Departure date, YYYY-MM-DD. Nights run from start up to (not including) end. */
+  end: string;
+  partySize: number;
+  names: string;
+  note: string;
+  status: BookingStatus;
+  welcomeNote: string;
+  doorCode: string;
+  createdAt: string;
+  decidedAt?: string;
+  /** Set when an owner booked or blocked the dates on someone's behalf. */
+  bookedByOwner?: boolean;
+  /** Message the guest left when heading out. */
+  departureNote?: string;
+}
+
+export type GuideGroup = 'arrive' | 'stay' | 'leave';
+export type Season = 'winter' | 'spring' | 'summer' | 'fall';
+export type AmenityStatus = 'ready' | 'out' | 'stored' | 'info';
+
+export interface GuideSection {
+  id: string;
+  group: GuideGroup;
+  title: string;
+  summary: string;
+  body: string[];
+  checklist?: string[];
+  status: AmenityStatus;
+  statusNote?: string;
+  /** Seasons when this section is featured at the top of its group. */
+  featuredIn?: Season[];
+  order: number;
+}
+
+export type Delivery = 'email' | 'tap-to-text' | 'auto-text';
+
+/**
+ * A saved message. Today owners send by email or tap-to-text. Automated
+ * texting slots in later by adding 'auto-text' to a template's delivery list.
+ */
+export interface MessageTemplate {
+  id: 'welcome' | 'heading-out' | 'neighbors' | 'open-weekends';
+  label: string;
+  body: string;
+  delivery: Delivery[];
+}
+
+export interface CabinSettings {
+  address: string;
+  directions: string;
+  wifiNetwork: string;
+  wifiPassword: string;
+  weekendGoal: number;
+  showGoal: boolean;
+  /** 'auto' picks the season from today's date. */
+  season: Season | 'auto';
+}
+
+export interface Snapshot {
+  people: Person[];
+  bookings: Booking[];
+  guide: GuideSection[];
+  templates: MessageTemplate[];
+  settings: CabinSettings;
+}
