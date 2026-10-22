@@ -3,7 +3,7 @@ import { TierChip } from '../../components/bits';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import { holding, needsDecision, personById, smsHref, weekendsAddedBy, weekendsUsed } from '../../lib/cabin';
-import { addDays, fmtDay, fmtRange, fromISO, today } from '../../lib/dates';
+import { addDays, fmtRange, fromISO, today } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -122,20 +122,8 @@ export function OwnerHome() {
             {upcoming[0] && (() => {
               const next = upcoming[0];
               const who = next.names || personById(snap.people, next.personId)?.name;
-              return next.neighborsToldOn ? (
-                <div className="highlight" style={{ background: '#def0f6', borderColor: 'var(--teal)' }}>
-                  <span className="meta" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span className="strong" style={{ color: 'var(--teal)' }}>✓ Neighbors told about {who}</span>
-                    <span className="small muted">{fmtRange(next.start, next.end)} · sent {fmtDay(next.neighborsToldOn)}</span>
-                  </span>
-                  <button
-                    className="link-btn quiet"
-                    onClick={() => { store.updateBooking(next.id, { neighborsToldOn: '' }).then(() => toast('Marked as not sent.'), () => toast('Couldn’t save that. Try again.')); }}
-                  >
-                    Undo
-                  </button>
-                </div>
-              ) : (
+              // Once the neighbors are told, the small line on the stay card is enough.
+              return next.neighborsToldOn ? null : (
                 <a
                   className="btn outline"
                   href={smsHref('', `Hi neighbors! Friends of ours, ${who}, will be at our place ${fmtRange(next.start, next.end)}. – Pete & Trisha`)}
