@@ -8,6 +8,7 @@ import { bookingOn, personById, rangeAvailable } from '../../lib/cabin';
 import { daysBetween, fmtDay, fmtRange, fmtRangeLong, today, type ISODate } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
+import { formatPhone } from '../../lib/phone';
 
 function initials(name: string) {
   return name.replace(/\(.*?\)/g, '').split(/[\s&+]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -113,7 +114,7 @@ export function OwnerCalendar() {
             {fb.note && <div className="small">“{fb.note}”</div>}
             {fb.status !== 'blocked' && (
               <div className="small muted">
-                {fp.name}{fp.email ? ` · ${fp.email}` : ''}{fp.phone ? ` · ${fp.phone}` : ''}
+                {fp.name}{fp.email ? ` · ${fp.email}` : ''}{fp.phone ? ` · ${formatPhone(fp.phone)}` : ''}
                 {fb.bookedByOwner ? ' · booked by you' : ''}
               </div>
             )}

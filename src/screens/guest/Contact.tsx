@@ -3,6 +3,7 @@ import { smsHref } from '../../lib/cabin';
 import { SignOutButton } from '../SignIn';
 import { VersionLabel } from '../../components/UpdateBanner';
 import { useSession } from '../../lib/session';
+import { formatPhone } from '../../lib/phone';
 
 export function Contact() {
   const { snap, me } = useSession();
@@ -15,7 +16,7 @@ export function Contact() {
         <div key={o.id} className="card">
           <div className="title-sm">{o.shortName}</div>
           {o.phone || o.email ? (
-            <div className="small muted" style={{ userSelect: 'all' }}>{[o.phone, o.email].filter(Boolean).join(' · ')}</div>
+            <div className="small muted" style={{ userSelect: 'all' }}>{[formatPhone(o.phone), o.email].filter(Boolean).join(' · ')}</div>
           ) : (
             <div className="small muted">Contact details coming soon.</div>
           )}

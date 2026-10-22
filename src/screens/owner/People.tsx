@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from '../../components/Toast';
 import { MODE, store } from '../../data';
 import { SignOutButton } from '../SignIn';
@@ -7,6 +7,7 @@ import { TIER_LABEL, type Tier } from '../../data/types';
 import { holding, mailHref, smsHref } from '../../lib/cabin';
 import { fromISO, today } from '../../lib/dates';
 import { useSession } from '../../lib/session';
+import { formatPhone, formatPhoneAsTyped } from '../../lib/phone';
 
 const ORDER: Tier[] = ['owner', 'kids', 'friends'];
 
@@ -20,6 +21,14 @@ export function People() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', tier: 'friends' as Tier });
   const [editId, setEditId] = useState<string | null>(null);
+
+  // Tidy any numbers saved before the standard format existed (runs once per visit).
+  useEffect(() => {
+    snap.people
+      .filter((p) => p.phone && formatPhone(p.phone) !== p.phone)
+      .forEach((p) => void store.updatePerson(p.id, { phone: formatPhone(p.phone) }).catch(() => undefined));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [edit, setEdit] = useState({ name: '', email: '', phone: '' });
 
   const startEdit = (id: string) => {
@@ -30,7 +39,7 @@ export function People() {
   const saveEdit = async () => {
     if (!editId) return;
     const name = edit.name.trim();
-    await store.updatePerson(editId, { ...(name ? { name, shortName: name.split(/\s+/)[0] } : {}), email: edit.email.trim(), phone: edit.phone.trim() });
+    await store.updatePerson(editId, { ...(name ? { name, shortName: name.split(/\s+/)[0] } : {}), email: edit.email.trim(), phone: formatPhone(edit.phone) });
     setEditId(null);
     toast('Contact details saved.');
   };
@@ -44,7 +53,7 @@ export function People() {
       return;
     }
     const name = form.name.trim();
-    await store.addPerson({ ...form, name, shortName: name.split(/\s+/)[0], email: form.email.trim().toLowerCase(), phone: form.phone.trim() });
+    await store.addPerson({ ...form, name, shortName: name.split(/\s+/)[0], email: form.email.trim().toLowerCase(), phone: formatPhone(form.phone) });
     setForm({ name: '', email: '', phone: '', tier: 'friends' });
     setAdding(false);
     toast(`Added ${name}. Send them an invite below.`);
@@ -63,7 +72,7 @@ export function People() {
             <div className="title-sm">Invite someone</div>
             <div className="field"><label htmlFor="pn">Name</label><input id="pn" className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="field"><label htmlFor="pe">Email</label><input id="pe" className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="field"><label htmlFor="pp">Mobile</label><input id="pp" className="input" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="field"><label htmlFor="pp">Mobile</label><input id="pp" className="input" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: formatPhoneAsTyped(e.target.value) })} placeholder="(952) 555-0123" /></div>
             <div className="field">
               <label htmlFor="pt">Dibs group</label>
               <select id="pt" className="input" value={form.tier} onChange={(e) => setForm({ ...form, tier: e.target.value as Tier })}>
@@ -95,7 +104,7 @@ export function People() {
                     <div key={p.id} className="list-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10, padding: '12px 0' }}>
                       <div className="field"><label htmlFor={`nm-${p.id}`}>Name</label><input id={`nm-${p.id}`} className="input" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>
                       <div className="field"><label htmlFor={`em-${p.id}`}>Email</label><input id={`em-${p.id}`} className="input" type="email" value={edit.email} disabled={MODE === 'firebase'} onChange={(e) => setEdit({ ...edit, email: e.target.value })} />{MODE === 'firebase' && <span className="small muted">This is how they sign in. To change it, invite the new address.</span>}</div>
-                      <div className="field"><label htmlFor={`ph-${p.id}`}>Mobile</label><input id={`ph-${p.id}`} className="input" type="tel" value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>
+                      <div className="field"><label htmlFor={`ph-${p.id}`}>Mobile</label><input id={`ph-${p.id}`} className="input" type="tel" value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: formatPhoneAsTyped(e.target.value) })} placeholder="(952) 555-0123" /></div>
                       <div className="grid-2">
                         <button className="btn outline small" onClick={() => setEditId(null)}>Cancel</button>
                         <button className="btn small" onClick={saveEdit}>Save</button>
@@ -103,7 +112,7 @@ export function People() {
                     </div>
                   ) : (
                     <div key={p.id} className="list-row" style={{ flexWrap: 'wrap' }}>
-                      <span className="meta"><span className="strong">{p.name}</span><span className="small muted">{[p.email, p.phone].filter(Boolean).join(' · ') || 'No contact info yet'}</span></span>
+                      <span className="meta"><span className="strong">{p.name}</span><span className="small muted">{[p.email, formatPhone(p.phone)].filter(Boolean).join(' · ') || 'No contact info yet'}</span></span>
                       <span className="row" style={{ gap: 8 }}>
                         <span className="chip grey num" title={`Stays in ${year}`}>{staysThisYear(p.id)}</span>
                         <button className="link-btn" style={{ minHeight: 40 }} onClick={() => startEdit(p.id)}>Edit</button>

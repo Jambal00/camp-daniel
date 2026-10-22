@@ -7,6 +7,7 @@ import { accessUnlocked, fillTemplate, mapsHref, nextTripFor, smsHref, stayPhase
 import { daysBetween, fmtDay, fmtRange, today } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
+import { formatPhone } from '../../lib/phone';
 
 function seenKey(id: string) {
   return `camp-daniel:welcome-seen:${id}`;
@@ -128,7 +129,7 @@ export function Trip() {
             </a>
             {pete?.phone && (
               <a className="list-row" href={smsHref(pete.phone, camerasText)}>
-                <span className="meta"><span className="strong">Ask {pete.shortName} to turn off the cameras</span><span className="small muted">Opens a text to {pete.phone}</span></span>
+                <span className="meta"><span className="strong">Ask {pete.shortName} to turn off the cameras</span><span className="small muted">Opens a text to {formatPhone(pete.phone)}</span></span>
                 <span aria-hidden="true">›</span>
               </a>
             )}
