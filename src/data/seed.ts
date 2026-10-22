@@ -61,6 +61,10 @@ export function seedSnapshot(): Snapshot {
   return {
     people: PEOPLE,
     bookings: sampleBookings(),
+    visits: {
+      pete: { firstSeen: `${addDays(today(), -20)}T19:02:00.000Z`, lastSeen: new Date().toISOString() },
+      tyler: { firstSeen: `${addDays(today(), -9)}T01:15:00.000Z`, lastSeen: `${addDays(today(), -2)}T22:40:00.000Z` },
+    },
     guide: GUIDE,
     templates: [
       {

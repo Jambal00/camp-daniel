@@ -3,7 +3,7 @@ import { toast } from '../../components/Toast';
 import { MODE, store } from '../../data';
 import { SignOutButton } from '../SignIn';
 import { VersionLabel } from '../../components/UpdateBanner';
-import { TIER_LABEL, type Tier } from '../../data/types';
+import { TIER_LABEL, type Tier, type Visit } from '../../data/types';
 import { holding, mailHref, smsHref } from '../../lib/cabin';
 import { fromISO, today } from '../../lib/dates';
 import { useSession } from '../../lib/session';
@@ -15,8 +15,29 @@ function inviteText(first: string) {
   return `Hi ${first}! Pete & Trisha here. We'd love for you to use our cabin at Camp Daniel. Pick a weekend in the app: ${window.location.origin}${window.location.pathname}`;
 }
 
+/** "today", "yesterday", "Tue", or "Oct 20" for a sign-in time. */
+function whenLabel(iso: string) {
+  const d = new Date(iso);
+  const days = Math.round((new Date(new Date().toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
+}
+
+function SignedIn({ visit }: { visit: Visit | undefined }) {
+  return visit ? (
+    <span className="seen on"><span className="dot" aria-hidden="true" />Signed in · last opened {whenLabel(visit.lastSeen)}</span>
+  ) : (
+    <span className="seen"><span className="dot" aria-hidden="true" />Hasn't signed in yet</span>
+  );
+}
+
 export function People() {
-  const { snap } = useSession();
+  const { snap, me } = useSession();
+  const visits = snap.visits ?? {};
+  const guests = snap.people.filter((p) => p.tier !== 'owner');
+  const signedIn = guests.filter((p) => visits[p.id]).length;
   const year = fromISO(today()).getFullYear();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', tier: 'friends' as Tier });
@@ -65,6 +86,7 @@ export function People() {
         <div className="eyebrow">Owner · People</div>
         <h1 className="title" style={{ color: '#fff' }}>Who's invited</h1>
         <div className="sub">Only people you add can request a stay.</div>
+        {guests.length > 0 && <div className="sub num">{signedIn} of {guests.length} guest{guests.length === 1 ? ' has' : 's have'} signed in.</div>}
       </div>
       <main className="screen" style={{ paddingTop: 14 }}>
         {adding ? (
@@ -112,7 +134,7 @@ export function People() {
                     </div>
                   ) : (
                     <div key={p.id} className="list-row" style={{ flexWrap: 'wrap' }}>
-                      <span className="meta"><span className="strong">{p.name}</span><span className="small muted">{[p.email, formatPhone(p.phone)].filter(Boolean).join(' · ') || 'No contact info yet'}</span></span>
+                      <span className="meta"><span className="strong">{p.name}</span><span className="small muted">{[p.email, formatPhone(p.phone)].filter(Boolean).join(' · ') || 'No contact info yet'}</span>{p.id !== me.id && <SignedIn visit={visits[p.id]} />}</span>
                       <span className="row" style={{ gap: 8 }}>
                         <span className="chip grey num" title={`Stays in ${year}`}>{staysThisYear(p.id)}</span>
                         <button className="link-btn" style={{ minHeight: 40 }} onClick={() => startEdit(p.id)}>Edit</button>

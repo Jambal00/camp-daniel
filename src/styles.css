@@ -245,3 +245,9 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .viewswitch .seg button[aria-pressed="true"] { background: #fff; color: var(--blue); }
 .viewswitch.guest .seg button[aria-pressed="true"] { color: var(--orange); }
 .viewswitch select { font: inherit; font-size: 14px; padding: 6px 8px; border-radius: 8px; border: 0; min-width: 0; flex: 1; color: var(--ink); min-height: 34px; }
+
+/* People: has this person signed in? */
+.seen { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.seen .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--muted); flex-shrink: 0; }
+.seen.on { color: var(--green-ink, #1f6b3a); }
+.seen.on .dot { background: currentColor; border-color: currentColor; }

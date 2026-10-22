@@ -98,8 +98,16 @@ export interface GuidePhoto {
   createdAt: string;
 }
 
+/** When someone first and last opened the app (signed in). */
+export interface Visit {
+  firstSeen: string;
+  lastSeen: string;
+}
+
 export interface Snapshot {
   people: Person[];
+  /** Owners only: sign-in history keyed by person id. */
+  visits?: Record<string, Visit>;
   bookings: Booking[];
   guide: GuideSection[];
   templates: MessageTemplate[];

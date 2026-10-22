@@ -19,12 +19,13 @@ import { db } from './firebase';
 import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Booking, CabinSettings, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
+import type { Booking, CabinSettings, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
 
 /*
   Firestore layout (see firestore.rules for who can read what):
 
   people/{email}        name, shortName, email, phone, tier
+  visits/{email}        firstSeen, lastSeen (written by each person on sign-in; owners read)
   bookings/{id}         a stay or request; guests read only their own
   busy/{id}             {start, end} of every approved or blocked stay, so
                         guests see "Booked" without seeing who
@@ -71,6 +72,7 @@ type Parts = {
   templates: MessageTemplate[];
   settings: CabinSettings | null;
   wifiPassword: string;
+  visits: Record<string, Visit>;
 };
 
 export type StartResult = 'ready' | 'not-invited' | 'not-set-up';
@@ -89,7 +91,7 @@ function endOf(iso: string) {
 export class FirebaseStore implements DataStore {
   readonly kind = 'firebase' as const;
   private parts: Parts = {
-    people: [], self: null, bookings: [], busy: [], access: {}, guide: [], templates: [], settings: null, wifiPassword: '',
+    people: [], self: null, bookings: [], busy: [], access: {}, guide: [], templates: [], settings: null, wifiPassword: '', visits: {},
   };
   private listeners = new Set<(s: Snapshot) => void>();
   private unsubs: Unsubscribe[] = [];
@@ -124,6 +126,7 @@ export class FirebaseStore implements DataStore {
     }
 
     this.listen();
+    void this.recordVisit();
     await withTimeout(
       new Promise<void>((resolve) => {
         const check = () => (this.parts.settings ? resolve() : window.setTimeout(check, 50));
@@ -132,6 +135,18 @@ export class FirebaseStore implements DataStore {
       'loading the calendar',
     );
     return 'ready';
+  }
+
+  /** Note that this person opened the app, so owners can see who has signed in. Never blocks loading. */
+  private async recordVisit() {
+    const ref = doc(db, 'visits', this.email);
+    const now = new Date().toISOString();
+    try {
+      const cur = await getDoc(ref);
+      await setDoc(ref, { firstSeen: (cur.data()?.firstSeen as string | undefined) ?? now, lastSeen: now });
+    } catch (e) {
+      console.warn('Camp Daniel visit', e);
+    }
   }
 
   stop() {
@@ -205,6 +220,9 @@ export class FirebaseStore implements DataStore {
     if (this.isOwner) {
       onList<Person>(collection(db, 'people'), (v) => (this.parts.people = v));
       onList<Booking>(collection(db, 'bookings'), (v) => (this.parts.bookings = v));
+      onList<Visit & { id: string }>(collection(db, 'visits'), (v) => {
+        this.parts.visits = Object.fromEntries(v.map(({ id, firstSeen, lastSeen }) => [id, { firstSeen, lastSeen }]));
+      });
       onList<{ id: string; doorCode: string; wifiNetwork: string; wifiPassword: string }>(collection(db, 'access'), (v) => {
         this.parts.access = Object.fromEntries(v.map((a) => [a.id, a]));
       });
@@ -266,7 +284,7 @@ export class FirebaseStore implements DataStore {
     const settings: CabinSettings = { ...(p.settings ?? seedSnapshot().settings), wifiPassword: p.wifiPassword };
     const withAccess = (b: Booking): Booking => ({ ...b, doorCode: p.access[b.id]?.doorCode ?? '' });
     if (this.isOwner) {
-      return { people: p.people, bookings: p.bookings.map(withAccess), guide: p.guide, templates: p.templates, settings };
+      return { people: p.people, visits: p.visits, bookings: p.bookings.map(withAccess), guide: p.guide, templates: p.templates, settings };
     }
     // Guests: their own stays, plus other stays as anonymous "booked" ranges.
     const mine = new Set(p.bookings.map((b) => b.id));
