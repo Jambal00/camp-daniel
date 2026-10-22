@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StatusChip } from '../../components/bits';
+import { PhotoGallery } from '../../components/Photos';
 import { currentSeason } from '../../lib/cabin';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -52,6 +53,8 @@ export function GuideSection({ id }: { id: string }) {
       <div className="card prose">
         {s.body.map((p, i) => <p key={i}>{p}</p>)}
       </div>
+
+      <PhotoGallery sectionId={s.id} />
 
       {s.checklist && (
         <section className="card" aria-label="Checklist">

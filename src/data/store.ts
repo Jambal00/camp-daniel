@@ -1,4 +1,4 @@
-import type { Booking, CabinSettings, GuideSection, MessageTemplate, Person, Snapshot } from './types';
+import type { Booking, CabinSettings, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
 
 /**
  * The one seam between the screens and wherever data lives.
@@ -25,6 +25,11 @@ export interface DataStore {
   updateGuideSection(id: string, patch: Partial<GuideSection>): Promise<GuideSection>;
   updateTemplate(id: MessageTemplate['id'], patch: Partial<MessageTemplate>): Promise<MessageTemplate>;
   updateSettings(patch: Partial<CabinSettings>): Promise<CabinSettings>;
+
+  /** Photos for one guide section, kept live; returns a stop function. Loaded per section to keep the app light. */
+  watchPhotos(sectionId: string, onChange: (photos: GuidePhoto[]) => void): () => void;
+  addPhoto(input: Omit<GuidePhoto, 'id' | 'createdAt'>): Promise<GuidePhoto>;
+  deletePhoto(id: string): Promise<void>;
 
   /** Development only: put the sample data back. */
   reset?(): Promise<void>;

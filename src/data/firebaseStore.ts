@@ -19,7 +19,7 @@ import { db } from './firebase';
 import { GUIDE } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Booking, CabinSettings, GuideSection, MessageTemplate, Person, Snapshot } from './types';
+import type { Booking, CabinSettings, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
 
 /*
   Firestore layout (see firestore.rules for who can read what):
@@ -32,6 +32,7 @@ import type { Booking, CabinSettings, GuideSection, MessageTemplate, Person, Sna
                         only from noon on arrival day to the end of departure day
   guide/{sectionId}     cabin guide sections
   templates/{id}        message templates
+  photos/{id}           guide photos {sectionId, caption, data, order}
   settings/cabin        address, directions, Wi-Fi network, goal, season
   secrets/cabin         Wi-Fi password (owners only)
 */
@@ -392,4 +393,28 @@ export class FirebaseStore implements DataStore {
     }
     return { ...this.snapshot().settings, ...patch };
   }
+
+  // ---------- photos ----------
+
+  watchPhotos(sectionId: string, onChange: (photos: GuidePhoto[]) => void) {
+    return onSnapshot(
+      query(collection(db, 'photos'), where('sectionId', '==', sectionId)),
+      (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as GuidePhoto), id: d.id })).sort((a, b) => a.order - b.order)),
+      (err) => console.warn('Camp Daniel photos', err),
+    );
+  }
+
+  async addPhoto(input: Omit<GuidePhoto, 'id' | 'createdAt'>) {
+    const ref = doc(collection(db, 'photos'));
+    const p: GuidePhoto = { ...input, id: ref.id, createdAt: new Date().toISOString() };
+    const { id: _id, ...stored } = p;
+    void _id;
+    await setDoc(ref, stored);
+    return p;
+  }
+
+  async deletePhoto(id: string) {
+    await deleteDoc(doc(db, 'photos', id));
+  }
+
 }

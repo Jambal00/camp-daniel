@@ -29,6 +29,9 @@ export const store: DataStore = {
   updateGuideSection: (id, p) => backend().updateGuideSection(id, p),
   updateTemplate: (id, p) => backend().updateTemplate(id, p),
   updateSettings: (p) => backend().updateSettings(p),
+  watchPhotos: (id, cb) => backend().watchPhotos(id, cb),
+  addPhoto: (i) => backend().addPhoto(i),
+  deletePhoto: (id) => backend().deletePhoto(id),
   reset: () => backend().reset?.() ?? Promise.resolve(),
 };
 

@@ -86,6 +86,16 @@ export interface CabinSettings {
   season: Season | 'auto';
 }
 
+/** A photo attached to a guide section. `data` is a small JPEG as a data URL. */
+export interface GuidePhoto {
+  id: string;
+  sectionId: string;
+  caption: string;
+  data: string;
+  order: number;
+  createdAt: string;
+}
+
 export interface Snapshot {
   people: Person[];
   bookings: Booking[];

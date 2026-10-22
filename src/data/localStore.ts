@@ -1,8 +1,9 @@
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Snapshot } from './types';
+import type { GuidePhoto, Snapshot } from './types';
 
 const KEY = 'camp-daniel:v1';
+const PHOTOS_KEY = 'camp-daniel:photos';
 
 function read(): Snapshot {
   try {
@@ -113,6 +114,46 @@ export class LocalStore implements DataStore {
     const next = { ...this.state.settings, ...patch };
     this.commit({ ...this.state, settings: next });
     return next;
+  }
+
+  // ---------- photos (kept separately; browsers allow only a few MB here) ----------
+  private photos: GuidePhoto[] = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(PHOTOS_KEY) || '[]') as GuidePhoto[];
+    } catch {
+      return [];
+    }
+  })();
+  private photoListeners = new Set<() => void>();
+
+  private savePhotos() {
+    try {
+      localStorage.setItem(PHOTOS_KEY, JSON.stringify(this.photos));
+    } catch {
+      /* over the browser's storage limit: photos still show until reload */
+    }
+    this.photoListeners.forEach((fn) => fn());
+  }
+
+  watchPhotos(sectionId: string, onChange: (photos: GuidePhoto[]) => void) {
+    const send = () => onChange(this.photos.filter((p) => p.sectionId === sectionId).sort((a, b) => a.order - b.order));
+    send();
+    this.photoListeners.add(send);
+    return () => {
+      this.photoListeners.delete(send);
+    };
+  }
+
+  async addPhoto(input: Omit<GuidePhoto, 'id' | 'createdAt'>) {
+    const p = { ...input, id: uid('ph'), createdAt: new Date().toISOString() };
+    this.photos = [...this.photos, p];
+    this.savePhotos();
+    return p;
+  }
+
+  async deletePhoto(id: string) {
+    this.photos = this.photos.filter((p) => p.id !== id);
+    this.savePhotos();
   }
 
   async reset() {

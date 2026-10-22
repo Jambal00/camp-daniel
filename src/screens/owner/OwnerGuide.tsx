@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StatusChip } from '../../components/bits';
+import { PhotoManager, PhotoPackImport } from '../../components/Photos';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import type { AmenityStatus, GuideGroup, Season } from '../../data/types';
@@ -33,6 +34,7 @@ export function OwnerGuide() {
       </div>
       <main className="screen" style={{ paddingTop: 14 }}>
         <a className="btn outline" href={href('/guide')}>Preview what guests see</a>
+        <div className="row wrap" style={{ justifyContent: "space-between" }}><span className="small muted">Add or delete photos inside each section.</span><PhotoPackImport /></div>
 
         <div className="eyebrow">Amenity status</div>
         <div className="card tight">
@@ -199,6 +201,8 @@ export function EditSection({ id }: { id: string }) {
         <textarea id="body" className="input" rows={10} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
         <div className="small muted">Leave a blank line between paragraphs.</div>
       </div>
+      <PhotoManager sectionId={sec.id} />
+
       {sec.checklist && (
         <div className="field">
           <label htmlFor="cl">Checklist (one item per line)</label>
