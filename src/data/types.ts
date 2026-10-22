@@ -42,6 +42,8 @@ export interface Booking {
   bookedByOwner?: boolean;
   /** Message the guest left when heading out. */
   departureNote?: string;
+  /** Day (YYYY-MM-DD) an owner told the neighbors about this stay. */
+  neighborsToldOn?: string;
 }
 
 export type GuideGroup = 'arrive' | 'stay' | 'leave';

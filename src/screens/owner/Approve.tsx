@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { toast } from '../../components/Toast';
 import { TierChip } from '../../components/bits';
 import { Icon } from '../../components/Icon';
 import { store } from '../../data';
 import { fillTemplate, mailHref, personById, rangeAvailable, smsHref } from '../../lib/cabin';
-import { fmtDay, fmtRangeLong } from '../../lib/dates';
+import { fmtDay, fmtRangeLong, today } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -97,6 +98,31 @@ export function Approve({ id }: { id: string }) {
           {p.shortName} sees the welcome note in the app as soon as you save. On the next screen you can also email or text it from your phone. Automatic texts are coming later.
         </div>
       </div>
+
+      {b.status === 'approved' && (
+        <div className="field">
+          <div className="label">4 · Neighbors</div>
+          <label className="check" style={{ borderBottom: 0 }}>
+            <input
+              type="checkbox"
+              checked={!!b.neighborsToldOn}
+              onChange={(e) => {
+                const on = e.target.checked;
+                store.updateBooking(b.id, { neighborsToldOn: on ? today() : '' }).then(
+                  () => toast(on ? 'Marked as sent to the neighbors.' : 'Marked as not sent.'),
+                  () => toast('Couldn’t save that. Try again.'),
+                );
+              }}
+            />
+            <span>
+              Neighbors told about this stay
+              <span className="small muted" style={{ display: 'block' }}>
+                {b.neighborsToldOn ? `Sent ${fmtDay(b.neighborsToldOn)}` : 'Check this once you’ve texted or emailed them'}
+              </span>
+            </span>
+          </label>
+        </div>
+      )}
 
       <div className="bottom-action no-tabs">
         <button className="btn block" onClick={save} disabled={!free}>{editing ? 'Save changes' : 'Approve & send welcome'}</button>

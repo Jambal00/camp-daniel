@@ -3,7 +3,7 @@ import { TierChip } from '../../components/bits';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import { holding, needsDecision, personById, smsHref, weekendsAddedBy, weekendsUsed } from '../../lib/cabin';
-import { addDays, fmtRange, fromISO, today } from '../../lib/dates';
+import { addDays, fmtDay, fmtRange, fromISO, today } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -107,20 +107,44 @@ export function OwnerHome() {
                 const todo = !b.doorCode ? 'Add door code' : '';
                 return (
                   <a key={b.id} className="list-row" href={href(`/owner/approve/${b.id}`)}>
-                    <span className="meta"><span className="strong">{b.names || p?.name}</span><span className="small muted">{fmtRange(b.start, b.end)} · {b.partySize} people</span></span>
+                    <span className="meta">
+                      <span className="strong">{b.names || p?.name}</span>
+                      <span className="small muted">{fmtRange(b.start, b.end)} · {b.partySize} people</span>
+                      <span className="small" style={{ fontWeight: 600, color: b.neighborsToldOn ? 'var(--teal)' : 'var(--orange-ink)' }}>
+                        {b.neighborsToldOn ? '✓ Neighbors told' : 'Neighbors not told yet'}
+                      </span>
+                    </span>
                     {todo ? <span className="chip orange">{todo}</span> : <span className="chip blue">Ready</span>}
                   </a>
                 );
               })}
             </div>
-            {upcoming[0] && (
-              <a
-                className="btn outline"
-                href={smsHref('', `Hi neighbors! Friends of ours, ${upcoming[0].names || personById(snap.people, upcoming[0].personId)?.name}, will be at our place ${fmtRange(upcoming[0].start, upcoming[0].end)}. – Pete & Trisha`)}
-              >
-                Text the neighbors about {fmtRange(upcoming[0].start, upcoming[0].end)}
-              </a>
-            )}
+            {upcoming[0] && (() => {
+              const next = upcoming[0];
+              const who = next.names || personById(snap.people, next.personId)?.name;
+              return next.neighborsToldOn ? (
+                <div className="highlight" style={{ background: '#def0f6', borderColor: 'var(--teal)' }}>
+                  <span className="meta" style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span className="strong" style={{ color: 'var(--teal)' }}>✓ Neighbors told about {who}</span>
+                    <span className="small muted">{fmtRange(next.start, next.end)} · sent {fmtDay(next.neighborsToldOn)}</span>
+                  </span>
+                  <button
+                    className="link-btn quiet"
+                    onClick={() => { store.updateBooking(next.id, { neighborsToldOn: '' }).then(() => toast('Marked as not sent.'), () => toast('Couldn’t save that. Try again.')); }}
+                  >
+                    Undo
+                  </button>
+                </div>
+              ) : (
+                <a
+                  className="btn outline"
+                  href={smsHref('', `Hi neighbors! Friends of ours, ${who}, will be at our place ${fmtRange(next.start, next.end)}. – Pete & Trisha`)}
+                  onClick={() => { store.updateBooking(next.id, { neighborsToldOn: today() }).catch(() => toast('Couldn’t mark the neighbors as told. Try again.')); }}
+                >
+                  Text the neighbors about {fmtRange(next.start, next.end)}
+                </a>
+              );
+            })()}
           </>
         )}
       </main>
