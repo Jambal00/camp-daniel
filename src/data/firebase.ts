@@ -24,7 +24,9 @@ const config = {
 
 export const app = initializeApp(config);
 export const auth = getAuth(app);
-export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+// Long polling uses ordinary web requests instead of a streaming connection, which
+// some networks (office Wi-Fi, filters, VPNs) and iPhone home-screen apps quietly block.
+export const db = initializeFirestore(app, { ignoreUndefinedProperties: true, experimentalForceLongPolling: true });
 
 const EMAIL_KEY = 'camp-daniel:signin-email';
 
