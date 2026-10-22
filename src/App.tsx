@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { GUEST_TABS, ownerTabs, TabBar } from './components/TabBar';
 import { Toaster } from './components/Toast';
+import { ViewSwitch } from './components/PreviewBar';
 import { UpdateBanner, VersionLabel } from './components/UpdateBanner';
 import { MODE, store, useData } from './data';
 import { NotInvited, SignIn, SignOutButton } from './screens/SignIn';
@@ -116,6 +117,7 @@ function Shell() {
       <UpdateBanner />
       {/* Sample-data mode only: switch between guest and owner. */}
       {MODE === 'local' ? <DevBar /> : null}
+      <ViewSwitch />
       {screen}
       {!fullScreen && <TabBar tabs={tabs} path={route.path} />}
       <Toaster />

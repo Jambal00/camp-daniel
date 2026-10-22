@@ -236,3 +236,12 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .viewer img { max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 8px; }
 .viewer-cap { color: #fff; font-size: 15px; text-align: center; max-width: 40ch; }
 .viewer-close { background: transparent; color: #fff; border-color: #fff; }
+
+/* Owner / Guest view switch (owners only) */
+.viewswitch { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 8px; padding: calc(6px + env(safe-area-inset-top, 0px)) var(--gutter) 6px; background: #10263d; }
+.viewswitch.guest { background: var(--orange); }
+.viewswitch .seg { display: inline-flex; background: rgba(255,255,255,.18); border-radius: 10px; padding: 3px; flex-shrink: 0; }
+.viewswitch .seg button { border: 0; background: transparent; color: #fff; font: inherit; font-size: 14px; font-weight: 700; padding: 6px 14px; min-height: 34px; border-radius: 8px; cursor: pointer; }
+.viewswitch .seg button[aria-pressed="true"] { background: #fff; color: var(--blue); }
+.viewswitch.guest .seg button[aria-pressed="true"] { color: var(--orange); }
+.viewswitch select { font: inherit; font-size: 14px; padding: 6px 8px; border-radius: 8px; border: 0; min-width: 0; flex: 1; color: var(--ink); min-height: 34px; }

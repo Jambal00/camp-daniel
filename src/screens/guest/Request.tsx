@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from '../../components/Toast';
 import { Stepper } from '../../components/bits';
 import { store } from '../../data';
 import { rangeAvailable } from '../../lib/cabin';
@@ -7,7 +8,7 @@ import { go, href, type Route } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
 export function Request({ route }: { route: Route }) {
-  const { snap, me } = useSession();
+  const { snap, me, previewing } = useSession();
   const start = route.query.get('start') ?? '';
   const end = route.query.get('end') ?? '';
   const last = [...snap.bookings].filter((b) => b.personId === me.id).sort((a, b) => b.start.localeCompare(a.start))[0];
@@ -23,6 +24,10 @@ export function Request({ route }: { route: Route }) {
   const nights = valid ? daysBetween(start, end) : 0;
 
   const send = async () => {
+    if (previewing) {
+      toast('Guest preview: nothing was sent.');
+      return;
+    }
     setBusy(true);
     const b = await store.createBooking({
       personId: me.id, start, end, partySize: party, names: names.trim(), note: note.trim(),

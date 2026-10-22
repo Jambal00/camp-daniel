@@ -14,7 +14,7 @@ function seenKey(id: string) {
 }
 
 export function Trip() {
-  const { snap, me, host: pete } = useSession();
+  const { snap, me, host: pete, previewing } = useSession();
   const trip = nextTripFor(me.id, snap.bookings);
   const [firstView] = useState(() => {
     if (!trip) return false;
@@ -150,7 +150,12 @@ export function Trip() {
           <a
             className="btn block"
             href={smsHref(pete.phone, headingOut)}
-            onClick={() => {
+            onClick={(e) => {
+              if (previewing) {
+                e.preventDefault();
+                toast('Guest preview: nothing was sent.');
+                return;
+              }
               store.updateBooking(trip.id, { departureNote: outNote.trim() || '(no notes)' });
               toast('Thanks! Pete will see your note.');
             }}

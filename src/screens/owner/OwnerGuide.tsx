@@ -33,7 +33,6 @@ export function OwnerGuide() {
         <h1 className="title" style={{ color: '#fff' }}>Cabin guide</h1>
       </div>
       <main className="screen" style={{ paddingTop: 14 }}>
-        <a className="btn outline" href={href('/guide')}>Preview what guests see</a>
         <div className="row wrap" style={{ justifyContent: "space-between" }}><span className="small muted">Add or delete photos inside each section.</span><PhotoPackImport /></div>
 
         <div className="eyebrow">Amenity status</div>
