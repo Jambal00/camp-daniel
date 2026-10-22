@@ -127,6 +127,11 @@ export class FirebaseStore implements DataStore {
 
     this.listen();
     void this.recordVisit();
+    // Phones keep the app open in the background; count coming back to it as a visit too (at most hourly).
+    this.onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - this.lastStamp > 60 * 60 * 1000) void this.recordVisit();
+    };
+    document.addEventListener('visibilitychange', this.onVisible);
     await withTimeout(
       new Promise<void>((resolve) => {
         const check = () => (this.parts.settings ? resolve() : window.setTimeout(check, 50));
@@ -138,7 +143,11 @@ export class FirebaseStore implements DataStore {
   }
 
   /** Note that this person opened the app, so owners can see who has signed in. Never blocks loading. */
+  private lastStamp = 0;
+  private onVisible?: () => void;
+
   private async recordVisit() {
+    this.lastStamp = Date.now();
     const ref = doc(db, 'visits', this.email);
     const now = new Date().toISOString();
     try {
@@ -150,6 +159,7 @@ export class FirebaseStore implements DataStore {
   }
 
   stop() {
+    if (this.onVisible) document.removeEventListener('visibilitychange', this.onVisible);
     this.unsubs.forEach((u) => u());
     this.unsubs = [];
     window.clearInterval(this.accessTimer);
