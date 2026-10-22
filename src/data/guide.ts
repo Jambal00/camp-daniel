@@ -5,6 +5,34 @@ import type { GuideSection } from './types';
 // Secrets (Wi-Fi password, door codes) are NOT stored here; they live in
 // cabin settings and on each booking so they never end up in the code.
 
+/** Local favorites. Each name links to its map listing, which opens directions on a phone. */
+export const LOCAL_FAVORITES: string[] = [
+  '[The Crow Bar](https://www.google.com/maps/search/?api=1&query=The%20Crow%20Bar%2C%205046%20Co%20Hwy%20A%2C%20Webster%2C%20WI): ask for Jess or Shawn (the owners) and tell them you are with us. 5046 Co Hwy A, Webster. Too cool for a website.',
+  '[Silly Bird Café](https://www.google.com/maps/search/?api=1&query=Silly%20Bird%20Canteen%2C%20Siren%2C%20WI): solid coffee and snacks, next to a cool little general store with cabin knick-knacks.',
+  '[Wayne’s Food Plus](https://www.google.com/maps/search/?api=1&query=Wayne%27s%20Foods%20Plus%2C%20Webster%2C%20WI) in Webster: all your grocery needs. You drove by it on the way in.',
+  '[Fusion Bistro](https://www.google.com/maps/search/?api=1&query=Fusion%20Bistro%2C%20Webster%2C%20WI) in Webster: coffee, pastries, sandwiches, and now wine.',
+  '[Ace Hardware](https://www.google.com/maps/search/?api=1&query=Ace%20Hardware%2C%20Webster%2C%20WI) in Webster: everything under the sun.',
+  '[Moose Mulligan’s Mini Golf](https://www.google.com/maps/search/?api=1&query=Moose%20Mulligan%27s%20Mini%20Golf%2C%20Siren%2C%20WI) in Siren: we had a great time. Recommend.',
+  '[Gandy Dancer Antique Shop](https://www.google.com/maps/search/?api=1&query=Gandy%20Dancer%20Antique%20Shop%2C%20Webster%2C%20WI): Pete vouches for it. Great vinyl selection.',
+  '[Pour House](https://www.google.com/maps/search/?api=1&query=Pour%20House%2C%20Siren%2C%20WI) in Siren: solid bar food.',
+  '[Voyager Village Bar & Grill](https://www.google.com/maps/search/?api=1&query=Voyager%20Village%20Bar%20%26%20Grill%2C%20Danbury%2C%20WI): on a golf course next to a small airport. Bocce ball too.',
+  '[Duluth](https://www.google.com/maps/search/?api=1&query=Duluth%2C%20MN) is a little over an hour away and makes a great day trip.',
+];
+
+/** The original, unlinked text, so a sign-in can upgrade it only if nobody has edited it. */
+export const LOCAL_FAVORITES_V1: string[] = [
+  'The Crow Bar: ask for Jess or Shawn (the owners) and tell them you are with us. 5046 Co Hwy A, Webster. Too cool for a website.',
+  'Silly Bird Café: solid coffee and snacks, next to a cool little general store with cabin knick-knacks.',
+  'Wayne’s Food Plus in Webster: all your grocery needs. You drove by it on the way in.',
+  'Fusion Bistro in Webster: coffee, pastries, sandwiches, and now wine.',
+  'Ace Hardware in Webster: everything under the sun.',
+  'Moose Mulligan’s Mini Golf in Siren: we had a great time. Recommend.',
+  'Gandy Dancer Antique Shop: Pete vouches for it. Great vinyl selection.',
+  'Pour House in Siren: solid bar food.',
+  'Voyager Village Bar & Grill: on a golf course next to a small airport. Bocce ball too.',
+  'Duluth is a little over an hour away and makes a great day trip.',
+];
+
 export const GUIDE: GuideSection[] = [
   // ---------- Arrive ----------
   {
@@ -198,18 +226,7 @@ export const GUIDE: GuideSection[] = [
     title: 'Local favorites',
     summary: 'Crow Bar, Fusion Bistro, Moose Mulligan’s and more',
     status: 'info',
-    body: [
-      'The Crow Bar: ask for Jess or Shawn (the owners) and tell them you are with us. 5046 Co Hwy A, Webster. Too cool for a website.',
-      'Silly Bird Café: solid coffee and snacks, next to a cool little general store with cabin knick-knacks.',
-      'Wayne’s Food Plus in Webster: all your grocery needs. You drove by it on the way in.',
-      'Fusion Bistro in Webster: coffee, pastries, sandwiches, and now wine.',
-      'Ace Hardware in Webster: everything under the sun.',
-      'Moose Mulligan’s Mini Golf in Siren: we had a great time. Recommend.',
-      'Gandy Dancer Antique Shop: Pete vouches for it. Great vinyl selection.',
-      'Pour House in Siren: solid bar food.',
-      'Voyager Village Bar & Grill: on a golf course next to a small airport. Bocce ball too.',
-      'Duluth is a little over an hour away and makes a great day trip.',
-    ],
+    body: LOCAL_FAVORITES,
   },
 
   // ---------- Head out ----------

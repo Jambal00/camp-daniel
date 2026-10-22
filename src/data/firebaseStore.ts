@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { fromISO } from '../lib/dates';
 import { db } from './firebase';
-import { GUIDE } from './guide';
+import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
 import type { Booking, CabinSettings, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
@@ -152,6 +152,15 @@ export class FirebaseStore implements DataStore {
       batch.set(doc(db, 'secrets', 'cabin'), { wifiPassword: '' });
       GUIDE.forEach((g) => batch.set(doc(db, 'guide', g.id), g));
       seed.templates.forEach((t) => batch.set(doc(db, 'templates', t.id), t));
+    } else {
+      // One-time upgrade: add map links to Local favorites, but only if the
+      // section still has the original text (never overwrite an owner's edits).
+      const localRef = doc(db, 'guide', 'local');
+      const local = await getDoc(localRef);
+      const body = local.exists() ? (local.data() as GuideSection).body : undefined;
+      if (body && JSON.stringify(body) === JSON.stringify(LOCAL_FAVORITES_V1)) {
+        batch.set(localRef, { body: LOCAL_FAVORITES }, { merge: true });
+      }
     }
     const meRef = doc(db, 'people', this.email);
     const me = await getDoc(meRef);

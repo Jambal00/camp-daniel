@@ -198,7 +198,7 @@ export function EditSection({ id }: { id: string }) {
       <div className="field">
         <label htmlFor="body">What guests should know</label>
         <textarea id="body" className="input" rows={10} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
-        <div className="small muted">Leave a blank line between paragraphs.</div>
+        <div className="small muted">Leave a blank line between paragraphs. To add a link, write [Crow Bar](https://…) or paste the web address.</div>
       </div>
       <PhotoManager sectionId={sec.id} />
 

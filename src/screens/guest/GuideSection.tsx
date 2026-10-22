@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { LinkedText } from '../../components/LinkedText';
 import { StatusChip } from '../../components/bits';
 import { PhotoGallery } from '../../components/Photos';
 import { currentSeason } from '../../lib/cabin';
@@ -51,7 +52,7 @@ export function GuideSection({ id }: { id: string }) {
       </header>
 
       <div className="card prose">
-        {s.body.map((p, i) => <p key={i}>{p}</p>)}
+        {s.body.map((p, i) => <p key={i}><LinkedText text={p} /></p>)}
       </div>
 
       <PhotoGallery sectionId={s.id} />
