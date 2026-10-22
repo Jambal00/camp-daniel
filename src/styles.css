@@ -251,3 +251,7 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .seen .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--muted); flex-shrink: 0; }
 .seen.on { color: var(--green-ink, #1f6b3a); }
 .seen.on .dot { background: currentColor; border-color: currentColor; }
+
+/* Guide: put away for the season */
+.list-row.stored .meta { opacity: .5; }
+.list-row.stored .strong { font-weight: 600; }

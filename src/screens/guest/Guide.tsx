@@ -41,7 +41,7 @@ export function Guide() {
             </div>
             <div className="card tight">
               {all.map((s, i) => (
-                <a key={s.id} className="list-row" href={href(`/guide/${s.id}`)}>
+                <a key={s.id} className={`list-row${s.status === 'stored' ? ' stored' : ''}`} href={href(`/guide/${s.id}`)}>
                   <span className="meta">
                     <span className="strong">{s.title}</span>
                     <span className="small muted">{s.status !== 'ready' && s.status !== 'info' && s.statusNote ? s.statusNote : s.summary}</span>

@@ -112,7 +112,8 @@ export const SEASON_LABEL: Record<Season, string> = { winter: 'Winter', spring: 
 
 /** Sections in a group: this season's picks first, then problems, then the rest. */
 export function sortSections(sections: GuideSection[], season: Season): GuideSection[] {
-  const rank = (s: GuideSection) => (s.featuredIn?.includes(season) ? 0 : s.status === 'out' ? 1 : 2);
+  // Stored for the season goes last, even if it's normally featured.
+  const rank = (s: GuideSection) => (s.status === 'stored' ? 3 : s.featuredIn?.includes(season) ? 0 : s.status === 'out' ? 1 : 2);
   return [...sections].sort((a, b) => rank(a) - rank(b) || a.order - b.order);
 }
 
