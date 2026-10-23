@@ -465,6 +465,10 @@ export class FirebaseStore implements DataStore {
     return p;
   }
 
+  async updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption'>>) {
+    await updateDoc(doc(db, 'photos', id), patch);
+  }
+
   async deletePhoto(id: string) {
     await deleteDoc(doc(db, 'photos', id));
   }

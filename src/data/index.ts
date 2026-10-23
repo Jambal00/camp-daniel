@@ -33,6 +33,7 @@ export const store: DataStore = {
   updateSettings: (p) => backend().updateSettings(p),
   watchPhotos: (id, cb) => backend().watchPhotos(id, cb),
   addPhoto: (i) => backend().addPhoto(i),
+  updatePhoto: (id, p) => backend().updatePhoto(id, p),
   deletePhoto: (id) => backend().deletePhoto(id),
   reset: () => backend().reset?.() ?? Promise.resolve(),
 };

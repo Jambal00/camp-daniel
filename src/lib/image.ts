@@ -35,3 +35,26 @@ export async function shrinkPhoto(file: File | Blob, maxEdge = 1600, maxChars = 
     URL.revokeObjectURL(url);
   }
 }
+
+/** Turns a stored photo a quarter turn (clockwise by default) and returns the new JPEG. */
+export async function rotatePhoto(data: string, clockwise = true, maxChars = 600_000): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error('Couldn’t open that photo.'));
+    el.src = data;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalHeight;
+  canvas.height = img.naturalWidth;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('This phone couldn’t turn the photo.');
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(((clockwise ? 90 : -90) * Math.PI) / 180);
+  ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+  for (const q of [0.88, 0.8, 0.7, 0.6]) {
+    const out = canvas.toDataURL('image/jpeg', q);
+    if (out.length <= maxChars) return out;
+  }
+  throw new Error('That photo is too large to turn.');
+}

@@ -32,6 +32,7 @@ export interface DataStore {
   /** Photos for one guide section, kept live; returns a stop function. Loaded per section to keep the app light. */
   watchPhotos(sectionId: string, onChange: (photos: GuidePhoto[]) => void): () => void;
   addPhoto(input: Omit<GuidePhoto, 'id' | 'createdAt'>): Promise<GuidePhoto>;
+  updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption'>>): Promise<void>;
   deletePhoto(id: string): Promise<void>;
 
   /** Development only: put the sample data back. */

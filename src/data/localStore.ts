@@ -163,6 +163,11 @@ export class LocalStore implements DataStore {
     return p;
   }
 
+  async updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption'>>) {
+    this.photos = this.photos.map((p) => (p.id === id ? { ...p, ...patch } : p));
+    this.savePhotos();
+  }
+
   async deletePhoto(id: string) {
     this.photos = this.photos.filter((p) => p.id !== id);
     this.savePhotos();

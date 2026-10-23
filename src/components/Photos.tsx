@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { store } from '../data';
 import type { GuidePhoto } from '../data/types';
-import { shrinkPhoto } from '../lib/image';
+import { rotatePhoto, shrinkPhoto } from '../lib/image';
 import { toast } from './Toast';
 
 /** Live list of a section's photos. */
@@ -53,6 +53,30 @@ export function PhotoManager({ sectionId }: { sectionId: string }) {
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [turning, setTurning] = useState<string | null>(null);
+
+  const turn = async (p: GuidePhoto) => {
+    setTurning(p.id);
+    try {
+      await store.updatePhoto(p.id, { data: await rotatePhoto(p.data) });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Couldn’t turn the photo. Try again.');
+    } finally {
+      setTurning(null);
+    }
+  };
+
+  const turnPending = async () => {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      setPending(await rotatePhoto(pending));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Couldn’t turn the photo.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
@@ -114,7 +138,10 @@ export function PhotoManager({ sectionId }: { sectionId: string }) {
                   <button className="btn small" style={{ background: 'var(--red-ink)', borderColor: 'var(--red-ink)' }} onClick={() => remove(p.id)}>Delete</button>
                 </span>
               ) : (
-                <button className="link-btn" style={{ color: 'var(--red-ink)', flexShrink: 0 }} onClick={() => setConfirmId(p.id)} aria-label={`Delete photo${p.caption ? `: ${p.caption}` : ''}`}>Delete</button>
+                <span className="row" style={{ gap: 14, flexShrink: 0 }}>
+                  <button className="link-btn" onClick={() => turn(p)} disabled={turning === p.id} aria-label={`Rotate photo${p.caption ? `: ${p.caption}` : ''}`}>{turning === p.id ? '…' : 'Rotate'}</button>
+                  <button className="link-btn" style={{ color: 'var(--red-ink)' }} onClick={() => setConfirmId(p.id)} aria-label={`Delete photo${p.caption ? `: ${p.caption}` : ''}`}>Delete</button>
+                </span>
               )}
             </div>
           ))}
@@ -124,6 +151,7 @@ export function PhotoManager({ sectionId }: { sectionId: string }) {
       {pending ? (
         <div className="card">
           <img src={pending} alt="New photo preview" style={{ width: '100%', borderRadius: 10 }} />
+          <button className="btn outline small" onClick={turnPending} disabled={busy}>↻ Rotate</button>
           <div className="field">
             <label htmlFor={`cap-${sectionId}`}>Caption (optional)</label>
             <input id={`cap-${sectionId}`} className="input" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="e.g. Well breaker, bottom right" />
