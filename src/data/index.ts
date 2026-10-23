@@ -26,6 +26,7 @@ export const store: DataStore = {
   updateBooking: (id, p) => backend().updateBooking(id, p),
   addPerson: (i) => backend().addPerson(i),
   updatePerson: (id, p) => backend().updatePerson(id, p),
+  deletePerson: (id) => backend().deletePerson(id),
   updateGuideSection: (id, p) => backend().updateGuideSection(id, p),
   addGuideSection: (i) => backend().addGuideSection(i),
   deleteGuideSection: (id) => backend().deleteGuideSection(id),

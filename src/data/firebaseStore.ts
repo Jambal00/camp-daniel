@@ -393,6 +393,10 @@ export class FirebaseStore implements DataStore {
     return p;
   }
 
+  async deletePerson(id: string) {
+    await deleteDoc(doc(db, 'people', id));
+  }
+
   async updatePerson(id: string, patch: Partial<Person>) {
     const { id: _id, email: _email, ...rest } = patch;
     void _id;

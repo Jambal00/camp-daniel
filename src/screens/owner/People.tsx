@@ -5,7 +5,7 @@ import { SignOutButton } from '../SignIn';
 import { VersionLabel } from '../../components/UpdateBanner';
 import { TIER_LABEL, type Tier, type Visit } from '../../data/types';
 import { holding, mailHref, smsHref } from '../../lib/cabin';
-import { fromISO, today } from '../../lib/dates';
+import { fmtRange, fromISO, today } from '../../lib/dates';
 import { useSession } from '../../lib/session';
 import { formatPhone, formatPhoneAsTyped } from '../../lib/phone';
 
@@ -51,10 +51,29 @@ export function People() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [edit, setEdit] = useState({ name: '', email: '', phone: '' });
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  // Stays that would be cancelled if this person is removed.
+  const upcomingFor = (id: string) =>
+    snap.bookings.filter((b) => b.personId === id && b.end >= today() && (b.status === 'pending' || b.status === 'approved')).sort((a, b) => a.start.localeCompare(b.start));
+
+  const removePerson = async (id: string) => {
+    const who = snap.people.find((p) => p.id === id);
+    try {
+      for (const b of upcomingFor(id)) await store.updateBooking(b.id, { status: 'declined', decidedAt: new Date().toISOString() });
+      await store.deletePerson(id);
+      setEditId(null);
+      setConfirmRemove(false);
+      toast(`${who?.shortName ?? 'They'} ${who ? 'is' : 'are'} off the list.`);
+    } catch {
+      toast('Couldn’t remove them. Check your connection and try again.');
+    }
+  };
 
   const startEdit = (id: string) => {
     const p = snap.people.find((x) => x.id === id);
     setEdit({ name: p?.name ?? '', email: p?.email ?? '', phone: p?.phone ?? '' });
+    setConfirmRemove(false);
     setEditId(id);
   };
   const saveEdit = async () => {
@@ -131,6 +150,22 @@ export function People() {
                         <button className="btn outline small" onClick={() => setEditId(null)}>Cancel</button>
                         <button className="btn small" onClick={saveEdit}>Save</button>
                       </div>
+                      {tier !== 'owner' && (confirmRemove ? (
+                        <div className="card" style={{ borderColor: 'var(--red-ink)' }}>
+                          <div className="strong">Remove {p.name}?</div>
+                          <div className="small muted">
+                            They won't be able to sign in or request stays.
+                            {upcomingFor(p.id).length > 0 && ` Their upcoming ${upcomingFor(p.id).map((b) => fmtRange(b.start, b.end)).join(', ')} ${upcomingFor(p.id).length === 1 ? 'stay' : 'stays'} will be cancelled and the dates opened up.`}
+                            {' '}Past stays still count toward your weekends.
+                          </div>
+                          <div className="grid-2">
+                            <button className="btn outline small" onClick={() => setConfirmRemove(false)}>Keep them</button>
+                            <button className="btn small" style={{ background: 'var(--red-ink)', borderColor: 'var(--red-ink)' }} onClick={() => removePerson(p.id)}>Remove</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button className="link-btn" style={{ color: 'var(--red-ink)' }} onClick={() => setConfirmRemove(true)}>Remove from the list</button>
+                      ))}
                     </div>
                   ) : (
                     <div key={p.id} className="list-row" style={{ flexWrap: 'wrap' }}>

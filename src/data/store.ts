@@ -21,6 +21,8 @@ export interface DataStore {
 
   addPerson(input: Omit<Person, 'id'>): Promise<Person>;
   updatePerson(id: string, patch: Partial<Person>): Promise<Person>;
+  /** Takes someone off the guest list; they can no longer sign in. */
+  deletePerson(id: string): Promise<void>;
 
   updateGuideSection(id: string, patch: Partial<GuideSection>): Promise<GuideSection>;
   addGuideSection(input: Omit<GuideSection, 'id'>): Promise<GuideSection>;

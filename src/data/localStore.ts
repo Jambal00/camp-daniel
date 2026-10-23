@@ -94,6 +94,10 @@ export class LocalStore implements DataStore {
     return next;
   }
 
+  async deletePerson(id: string) {
+    this.commit({ ...this.state, people: this.state.people.filter((p) => p.id !== id) });
+  }
+
   async updateGuideSection(id: string, patch: Parameters<DataStore['updateGuideSection']>[1]) {
     const cur = this.state.guide.find((g) => g.id === id);
     if (!cur) throw new Error(`No guide section ${id}`);
