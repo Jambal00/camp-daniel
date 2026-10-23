@@ -3,6 +3,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   setDoc,
@@ -406,6 +407,20 @@ export class FirebaseStore implements DataStore {
   async updateGuideSection(id: string, patch: Partial<GuideSection>) {
     await setDoc(doc(db, 'guide', id), patch, { merge: true });
     return { ...(this.parts.guide.find((g) => g.id === id) as GuideSection), ...patch };
+  }
+
+  async addGuideSection(input: Omit<GuideSection, 'id'>) {
+    const ref = doc(collection(db, 'guide'));
+    await setDoc(ref, input);
+    return { ...input, id: ref.id };
+  }
+
+  async deleteGuideSection(id: string) {
+    const photos = await getDocs(query(collection(db, 'photos'), where('sectionId', '==', id)));
+    const batch = writeBatch(db);
+    photos.docs.forEach((d) => batch.delete(d.ref));
+    batch.delete(doc(db, 'guide', id));
+    await batch.commit();
   }
 
   async updateTemplate(id: MessageTemplate['id'], patch: Partial<MessageTemplate>) {

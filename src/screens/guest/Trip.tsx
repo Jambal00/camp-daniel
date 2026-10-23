@@ -140,9 +140,11 @@ export function Trip() {
       {phase === 'staying' && pete?.phone && (
         <section className="card">
           <div className="title-sm">Heading out?</div>
+{snap.guide.some((g) => g.id === 'exit' && !g.hidden) && (
           <a className="list-row" href={href('/guide/exit')} style={{ borderBottom: 0, minHeight: 40 }}>
             <span className="strong">Exit checklist</span><span aria-hidden="true">›</span>
           </a>
+          )}
           <div className="field">
             <label htmlFor="outnote">Anything Pete &amp; Trisha should know?</label>
             <textarea id="outnote" className="input" rows={2} value={outNote} onChange={(e) => setOutNote(e.target.value)} placeholder="We ran low on TP, the dock ladder is loose…" />

@@ -23,6 +23,9 @@ export interface DataStore {
   updatePerson(id: string, patch: Partial<Person>): Promise<Person>;
 
   updateGuideSection(id: string, patch: Partial<GuideSection>): Promise<GuideSection>;
+  addGuideSection(input: Omit<GuideSection, 'id'>): Promise<GuideSection>;
+  /** Removes the topic and its photos. */
+  deleteGuideSection(id: string): Promise<void>;
   updateTemplate(id: MessageTemplate['id'], patch: Partial<MessageTemplate>): Promise<MessageTemplate>;
   updateSettings(patch: Partial<CabinSettings>): Promise<CabinSettings>;
 

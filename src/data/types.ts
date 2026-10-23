@@ -62,6 +62,8 @@ export interface GuideSection {
   /** Seasons when this section is featured at the top of its group. */
   featuredIn?: Season[];
   order: number;
+  /** Kept for owners but not shown to guests. */
+  hidden?: boolean;
 }
 
 export type Delivery = 'email' | 'tap-to-text' | 'auto-text';

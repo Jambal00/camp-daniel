@@ -1,6 +1,6 @@
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { GuidePhoto, Snapshot } from './types';
+import type { GuidePhoto, GuideSection, Snapshot } from './types';
 
 const KEY = 'camp-daniel:v1';
 const PHOTOS_KEY = 'camp-daniel:photos';
@@ -100,6 +100,18 @@ export class LocalStore implements DataStore {
     const next = { ...cur, ...patch };
     this.commit({ ...this.state, guide: this.state.guide.map((g) => (g.id === id ? next : g)) });
     return next;
+  }
+
+  async addGuideSection(input: Omit<GuideSection, 'id'>) {
+    const g = { ...input, id: uid('g') };
+    this.commit({ ...this.state, guide: [...this.state.guide, g] });
+    return g;
+  }
+
+  async deleteGuideSection(id: string) {
+    this.commit({ ...this.state, guide: this.state.guide.filter((g) => g.id !== id) });
+    this.photos = this.photos.filter((p) => p.sectionId !== id);
+    this.savePhotos();
   }
 
   async updateTemplate(id: Parameters<DataStore['updateTemplate']>[0], patch: Parameters<DataStore['updateTemplate']>[1]) {

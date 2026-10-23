@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { StatusChip } from '../../components/bits';
-import { PhotoManager, PhotoPackImport } from '../../components/Photos';
+import { PhotoManager, PhotoPackImport, usePhotos } from '../../components/Photos';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
-import type { AmenityStatus, GuideGroup, Season } from '../../data/types';
+import type { AmenityStatus, GuideGroup, GuideSection, Season } from '../../data/types';
 import { currentSeason, SEASON_LABEL, sortSections } from '../../lib/cabin';
-import { href } from '../../lib/router';
+import { go, href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
 const GROUPS: { id: GuideGroup; name: string }[] = [
@@ -60,11 +60,12 @@ export function OwnerGuide() {
             <div className="eyebrow">{grp.name}</div>
             <div className="card tight">
               {sortSections(snap.guide.filter((g) => g.group === grp.id), season).map((g) => (
-                <a key={g.id} className="list-row" href={href(`/owner/guide/${g.id}`)}>
+                <a key={g.id} className={`list-row${g.hidden ? ' stored' : ''}`} href={href(`/owner/guide/${g.id}`)}>
                   <span className="meta"><span className="strong">{g.title}</span><span className="small muted">{g.summary}</span></span>
-                  <span className="row" style={{ gap: 6 }}><StatusChip section={g} featured={g.featuredIn?.includes(season)} /><span aria-hidden="true">›</span></span>
+                  <span className="row" style={{ gap: 6 }}>{g.hidden ? <span className="chip grey">Hidden</span> : <StatusChip section={g} featured={g.featuredIn?.includes(season)} />}<span aria-hidden="true">›</span></span>
                 </a>
               ))}
+              <a className="link-btn" style={{ display: 'flex', alignItems: 'center' }} href={href(`/owner/guide/new?group=${grp.id}`)}>+ Add a topic</a>
             </div>
           </section>
         ))}
@@ -118,11 +119,13 @@ export function OwnerGuide() {
   );
 }
 
-/** Owner › Guide › one section. */
-export function EditSection({ id }: { id: string }) {
+/** Owner › Guide › one section, or a new one (id "new", group from ?group=). */
+export function EditSection({ id, group }: { id: string; group?: string | null }) {
   const { snap } = useSession();
+  const isNew = id === 'new';
   const sec = snap.guide.find((g) => g.id === id);
   const [form, setForm] = useState(() => ({
+    group: (sec?.group ?? (GROUPS.some((g) => g.id === group) ? group : 'stay')) as GuideGroup,
     title: sec?.title ?? '',
     summary: sec?.summary ?? '',
     body: sec?.body.join('\n\n') ?? '',
@@ -130,46 +133,94 @@ export function EditSection({ id }: { id: string }) {
     status: sec?.status ?? 'info',
     statusNote: sec?.statusNote ?? '',
     featuredIn: sec?.featuredIn ?? [],
+    hidden: sec?.hidden ?? false,
   }));
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const photos = usePhotos(isNew ? '' : id);
 
-  if (!sec) {
+  if (!sec && !isNew) {
     return (
       <main className="screen">
         <a className="back" href={href('/owner/guide')}>‹ Guide</a>
-        <div className="alert">That section doesn't exist.</div>
+        <div className="alert">That topic isn't in the guide anymore.</div>
       </main>
     );
   }
 
+  const fields = (): Omit<GuideSection, 'id' | 'order'> => ({
+    group: form.group,
+    title: form.title.trim(),
+    summary: form.summary.trim(),
+    body: form.body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+    checklist: form.checklist.split('\n').map((l) => l.trim()).filter(Boolean),
+    status: form.status as AmenityStatus,
+    statusNote: form.statusNote.trim(),
+    featuredIn: form.featuredIn,
+    hidden: form.hidden,
+  });
+
   const save = async () => {
-    await store.updateGuideSection(sec.id, {
-      title: form.title.trim(),
-      summary: form.summary.trim(),
-      body: form.body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
-      checklist: sec.checklist ? form.checklist.split('\n').map((l) => l.trim()).filter(Boolean) : undefined,
-      status: form.status as AmenityStatus,
-      statusNote: form.statusNote.trim() || undefined,
-      featuredIn: form.featuredIn,
-    });
-    toast('Saved. Guests see it right away.');
+    if (!form.title.trim()) {
+      toast('Give the topic a title first.');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (isNew) {
+        const order = Math.max(0, ...snap.guide.filter((g) => g.group === form.group).map((g) => g.order)) + 1;
+        const created = await store.addGuideSection({ ...fields(), order });
+        toast(form.hidden ? 'Topic added (hidden from guests).' : 'Topic added. Guests see it right away.');
+        go(`/owner/guide/${created.id}`);
+      } else {
+        await store.updateGuideSection(sec!.id, fields());
+        toast(form.hidden ? 'Saved. Hidden from guests.' : 'Saved. Guests see it right away.');
+      }
+    } catch {
+      toast('Couldn’t save. Check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    try {
+      await store.deleteGuideSection(sec!.id);
+      toast(`Deleted ${sec!.title}.`);
+      go('/owner/guide');
+    } catch {
+      toast('Couldn’t delete. Try again.');
+    }
   };
 
   const toggleSeason = (x: Season) =>
     setForm({ ...form, featuredIn: form.featuredIn.includes(x) ? form.featuredIn.filter((y) => y !== x) : [...form.featuredIn, x] });
 
+  const photoCount = photos?.length ?? 0;
+
   return (
     <main className="screen with-bottom-action">
       <a className="back" href={href('/owner/guide')}>‹ Guide</a>
-      <h1 className="title">Edit {sec.title}</h1>
+      <h1 className="title">{isNew ? 'New topic' : `Edit ${sec!.title}`}</h1>
 
       <div className="field">
         <label htmlFor="t">Title</label>
-        <input id="t" className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <input id="t" className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Hot tub" autoFocus={isNew} />
       </div>
       <div className="field">
         <label htmlFor="sm">One-line summary</label>
-        <input id="sm" className="input" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
+        <input id="sm" className="input" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="Shows under the title in the list" />
       </div>
+      <div className="field">
+        <label htmlFor="grp">Where it goes</label>
+        <select id="grp" className="input" value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value as GuideGroup })}>
+          {GROUPS.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </select>
+      </div>
+      <label className="check" style={{ borderBottom: 0 }}>
+        <input type="checkbox" checked={form.hidden} onChange={(e) => setForm({ ...form, hidden: e.target.checked })} />
+        <span>Hide from guests<span className="small muted" style={{ display: 'block' }}>Keeps everything you wrote; guests won't see it until you uncheck this.</span></span>
+      </label>
       <div className="grid-2">
         <div className="field">
           <label htmlFor="st">Status</label>
@@ -200,17 +251,39 @@ export function EditSection({ id }: { id: string }) {
         <textarea id="body" className="input" rows={10} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
         <div className="small muted">Leave a blank line between paragraphs. To add a link, write [Crow Bar](https://…) or paste the web address.</div>
       </div>
-      <PhotoManager sectionId={sec.id} />
-
-      {sec.checklist && (
+      {isNew ? (
         <div className="field">
-          <label htmlFor="cl">Checklist (one item per line)</label>
-          <textarea id="cl" className="input" rows={10} value={form.checklist} onChange={(e) => setForm({ ...form, checklist: e.target.value })} />
+          <div className="label">Photos</div>
+          <div className="small muted">Save the topic first, then you can add photos.</div>
+        </div>
+      ) : (
+        <PhotoManager sectionId={sec!.id} />
+      )}
+
+      <div className="field">
+        <label htmlFor="cl">Checklist (optional, one item per line)</label>
+        <textarea id="cl" className="input" rows={sec?.checklist?.length ? 10 : 3} value={form.checklist} onChange={(e) => setForm({ ...form, checklist: e.target.value })} />
+      </div>
+
+      {!isNew && (
+        <div className="card" style={{ borderColor: confirmDelete ? 'var(--red-ink)' : undefined }}>
+          {confirmDelete ? (
+            <>
+              <div className="strong">Delete {sec!.title}{photoCount ? ` and its ${photoCount} photo${photoCount === 1 ? '' : 's'}` : ''}?</div>
+              <div className="small muted">This can't be undone. To take it out of the guide for now, use "Hide from guests" instead.</div>
+              <div className="grid-2">
+                <button className="btn outline" onClick={() => setConfirmDelete(false)}>Keep it</button>
+                <button className="btn" style={{ background: 'var(--red-ink)', borderColor: 'var(--red-ink)' }} onClick={remove}>Delete</button>
+              </div>
+            </>
+          ) : (
+            <button className="link-btn" style={{ color: 'var(--red-ink)' }} onClick={() => setConfirmDelete(true)}>Delete this topic</button>
+          )}
         </div>
       )}
 
       <div className="bottom-action no-tabs">
-        <button className="btn block" onClick={save}>Save section</button>
+        <button className="btn block" onClick={save} disabled={saving}>{saving ? 'Saving…' : isNew ? 'Add topic' : 'Save topic'}</button>
       </div>
     </main>
   );

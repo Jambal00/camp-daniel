@@ -14,7 +14,8 @@ const GROUPS: { id: GuideGroup; name: string; hint: string }[] = [
 export function Guide() {
   const { snap, isOwner } = useSession();
   const season = currentSeason(snap.settings);
-  const broken = snap.guide.filter((s) => s.status === 'out');
+  const visible = snap.guide.filter((s) => !s.hidden);
+  const broken = visible.filter((s) => s.status === 'out');
 
   return (
     <main className="screen">
@@ -32,7 +33,7 @@ export function Guide() {
       ))}
 
       {GROUPS.map((g) => {
-        const all = sortSections(snap.guide.filter((s) => s.group === g.id), season);
+        const all = sortSections(visible.filter((s) => s.group === g.id), season);
         return (
           <section key={g.id} id={g.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div className="section-label">

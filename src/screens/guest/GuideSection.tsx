@@ -12,7 +12,7 @@ function checksKey(id: string) {
 
 export function GuideSection({ id }: { id: string }) {
   const { snap } = useSession();
-  const s = snap.guide.find((g) => g.id === id);
+  const s = snap.guide.find((g) => g.id === id && !g.hidden);
   const [checked, setChecked] = useState<number[]>(() => {
     try {
       return JSON.parse(localStorage.getItem(checksKey(id)) || '[]');
@@ -57,14 +57,14 @@ export function GuideSection({ id }: { id: string }) {
 
       <PhotoGallery sectionId={s.id} />
 
-      {s.checklist && (
+      {!!s.checklist?.length && (
         <section className="card" aria-label="Checklist">
           <div className="section-label">
             <div className="title-sm">Checklist</div>
-            <span className="chip orange num">{checked.length} of {s.checklist.length}</span>
+            <span className="chip orange num">{checked.length} of {s.checklist!.length}</span>
           </div>
           <div>
-            {s.checklist.map((item, i) => (
+            {s.checklist!.map((item, i) => (
               <label key={i} className={`check${checked.includes(i) ? ' done' : ''}`}>
                 <input type="checkbox" checked={checked.includes(i)} onChange={() => toggle(i)} />
                 <span>{item}</span>
