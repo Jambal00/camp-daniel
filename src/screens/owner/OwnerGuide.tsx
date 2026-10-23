@@ -24,7 +24,6 @@ export function OwnerGuide() {
   const [where, setWhere] = useState({ address: s.address, directions: s.directions });
   const [welcome, setWelcome] = useState(tpl?.body ?? '');
 
-  const setStatus = (id: string, status: AmenityStatus) => store.updateGuideSection(id, { status });
 
   return (
     <>
@@ -35,24 +34,37 @@ export function OwnerGuide() {
       <main className="screen" style={{ paddingTop: 14 }}>
         <div className="row wrap" style={{ justifyContent: "space-between" }}><span className="small muted">Add or delete photos inside each section.</span><PhotoPackImport /></div>
 
-        <div className="eyebrow">Amenity status</div>
+        <div className="section-label">
+          <div className="eyebrow">Amenities</div>
+          <div className="small muted">Tap a name to edit, hide or delete</div>
+        </div>
         <div className="card tight">
           {snap.guide.filter((g) => g.status !== 'info').map((g) => (
-            <div key={g.id} className="list-row">
-              <span className="meta"><span className="strong">{g.title}</span>{g.statusNote && g.status !== 'ready' && <span className="small muted">{g.statusNote}</span>}</span>
+            <div key={g.id} className={`list-row${g.hidden ? ' stored' : ''}`}>
+              <a className="meta" href={href(`/owner/guide/${g.id}`)} style={{ color: 'inherit', textDecoration: 'none', minWidth: 0 }}>
+                <span className="strong">{g.title} <span aria-hidden="true" className="muted">›</span></span>
+                {g.hidden ? <span className="small muted">Hidden from guests</span> : g.statusNote && g.status !== 'ready' && <span className="small muted">{g.statusNote}</span>}
+              </a>
               <select
                 className="input"
                 style={{ width: 'auto', minHeight: 40, padding: '4px 8px', fontSize: 14 }}
                 aria-label={`${g.title} status`}
-                value={g.status}
-                onChange={(e) => { setStatus(g.id, e.target.value as AmenityStatus); toast(`${g.title} updated.`); }}
+                value={g.hidden ? 'hidden' : g.status}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === 'hidden') store.updateGuideSection(g.id, { hidden: true });
+                  else store.updateGuideSection(g.id, { status: v as AmenityStatus, hidden: false });
+                  toast(v === 'hidden' ? `${g.title} is hidden from guests.` : `${g.title} updated.`);
+                }}
               >
                 <option value="ready">Ready</option>
                 <option value="out">Out of order</option>
                 <option value="stored">Stored</option>
+                <option value="hidden">Hidden</option>
               </select>
             </div>
           ))}
+          <a className="link-btn" style={{ display: 'flex', alignItems: 'center' }} href={href('/owner/guide/new?group=stay&amenity=1')}>+ Add an amenity</a>
         </div>
 
         {GROUPS.map((grp) => (
@@ -120,7 +132,7 @@ export function OwnerGuide() {
 }
 
 /** Owner › Guide › one section, or a new one (id "new", group from ?group=). */
-export function EditSection({ id, group }: { id: string; group?: string | null }) {
+export function EditSection({ id, group, amenity }: { id: string; group?: string | null; amenity?: boolean }) {
   const { snap } = useSession();
   const isNew = id === 'new';
   const sec = snap.guide.find((g) => g.id === id);
@@ -130,7 +142,7 @@ export function EditSection({ id, group }: { id: string; group?: string | null }
     summary: sec?.summary ?? '',
     body: sec?.body.join('\n\n') ?? '',
     checklist: sec?.checklist?.join('\n') ?? '',
-    status: sec?.status ?? 'info',
+    status: sec?.status ?? (amenity ? 'ready' : 'info'),
     statusNote: sec?.statusNote ?? '',
     featuredIn: sec?.featuredIn ?? [],
     hidden: sec?.hidden ?? false,
@@ -201,11 +213,11 @@ export function EditSection({ id, group }: { id: string; group?: string | null }
   return (
     <main className="screen with-bottom-action">
       <a className="back" href={href('/owner/guide')}>‹ Guide</a>
-      <h1 className="title">{isNew ? 'New topic' : `Edit ${sec!.title}`}</h1>
+      <h1 className="title">{isNew ? (amenity ? 'New amenity' : 'New topic') : `Edit ${sec!.title}`}</h1>
 
       <div className="field">
         <label htmlFor="t">Title</label>
-        <input id="t" className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Hot tub" autoFocus={isNew} />
+        <input id="t" className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={amenity ? 'e.g. Kayaks' : 'e.g. Hot tub'} autoFocus={isNew} />
       </div>
       <div className="field">
         <label htmlFor="sm">One-line summary</label>
@@ -225,7 +237,7 @@ export function EditSection({ id, group }: { id: string; group?: string | null }
         <div className="field">
           <label htmlFor="st">Status</label>
           <select id="st" className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as AmenityStatus })}>
-            <option value="info">Info only</option>
+            <option value="info">Info only (not an amenity)</option>
             <option value="ready">Ready</option>
             <option value="out">Out of order</option>
             <option value="stored">Stored</option>

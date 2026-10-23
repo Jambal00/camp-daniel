@@ -131,7 +131,7 @@ function pickScreen({ path, query }: Route, isOwner: boolean) {
     if (!isOwner) return <Home />;
     if (b === 'approve' && c) return <Approve id={c} />;
     if (b === 'calendar') return <OwnerCalendar />;
-    if (b === 'guide' && c) return <EditSection key={c} id={c} group={query.get('group')} />;
+    if (b === 'guide' && c) return <EditSection key={c} id={c} group={query.get('group')} amenity={query.get('amenity') === '1'} />;
     if (b === 'guide') return <OwnerGuide />;
     if (b === 'people') return <People />;
     return <OwnerHome />;
