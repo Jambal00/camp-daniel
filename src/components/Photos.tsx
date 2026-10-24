@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { store } from '../data';
 import type { GuidePhoto } from '../data/types';
 import { rotatePhoto, shrinkPhoto } from '../lib/image';
@@ -11,36 +11,67 @@ export function usePhotos(sectionId: string): GuidePhoto[] | null {
   return photos;
 }
 
-/** Full-screen view of one photo; tap anywhere or Close to dismiss. */
-function Viewer({ photo, onClose }: { photo: GuidePhoto; onClose: () => void }) {
+/** Full-screen view; swipe or use the arrows to move through the set. Tap the backdrop or Close to dismiss. */
+function Viewer({ photos, start, onClose }: { photos: GuidePhoto[]; start: number; onClose: () => void }) {
+  const [i, setI] = useState(start);
+  const touchX = useRef<number | null>(null);
+  const n = photos.length;
+  const step = (d: number) => setI((x) => (x + d + n) % n);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight') step(1);
+      if (e.key === 'ArrowLeft') step(-1);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose, n]);
+  const photo = photos[Math.min(i, n - 1)];
+  if (!photo) return null;
+  const stop = (e: MouseEvent) => e.stopPropagation();
   return (
-    <div className="viewer" role="dialog" aria-modal="true" aria-label={photo.caption || 'Photo'} onClick={onClose}>
-      <img src={photo.data} alt={photo.caption} />
+    <div
+      className="viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-label={photo.caption || 'Photo'}
+      onClick={onClose}
+      onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
+      onTouchEnd={(e) => {
+        if (touchX.current === null || n < 2) return;
+        const dx = e.changedTouches[0].clientX - touchX.current;
+        touchX.current = null;
+        if (Math.abs(dx) > 40) step(dx < 0 ? 1 : -1);
+      }}
+    >
+      <img src={photo.data} alt={photo.caption} onClick={stop} />
       {photo.caption && <div className="viewer-cap">{photo.caption}</div>}
-      <button className="btn outline small viewer-close" onClick={onClose}>Close</button>
+      <div className="viewer-nav" onClick={stop}>
+        {n > 1 && <button className="viewer-arrow" onClick={() => step(-1)} aria-label="Previous photo">‹</button>}
+        <button className="btn outline small viewer-close" onClick={onClose}>Close</button>
+        {n > 1 && <button className="viewer-arrow" onClick={() => step(1)} aria-label="Next photo">›</button>}
+      </div>
+      {n > 1 && <div className="viewer-count num">{i + 1} of {n}</div>}
     </div>
   );
 }
 
-/** Guests: the section's photos, tap to enlarge. Renders nothing when there are none. */
-export function PhotoGallery({ sectionId }: { sectionId: string }) {
+/** Guests: the section's photos, tap to enlarge. Renders nothing (or `empty`) when there are none. */
+export function PhotoGallery({ sectionId, empty = null }: { sectionId: string; empty?: ReactNode }) {
   const photos = usePhotos(sectionId);
-  const [open, setOpen] = useState<GuidePhoto | null>(null);
-  if (!photos || photos.length === 0) return null;
+  const [open, setOpen] = useState<number | null>(null);
+  if (!photos) return null;
+  if (photos.length === 0) return <>{empty}</>;
   return (
     <section className="photos" aria-label="Photos">
-      {photos.map((p) => (
-        <button key={p.id} className="photo" onClick={() => setOpen(p)} aria-label={`Enlarge photo${p.caption ? `: ${p.caption}` : ''}`}>
+      {photos.map((p, k) => (
+        <button key={p.id} className="photo" onClick={() => setOpen(k)} aria-label={`Enlarge photo${p.caption ? `: ${p.caption}` : ''}`}>
           <img src={p.data} alt={p.caption} loading="lazy" />
           {p.caption && <span className="photo-cap">{p.caption}</span>}
         </button>
       ))}
-      {open && <Viewer photo={open} onClose={() => setOpen(null)} />}
+      {open !== null && <Viewer photos={photos} start={open} onClose={() => setOpen(null)} />}
     </section>
   );
 }

@@ -32,6 +32,10 @@ export function OwnerGuide() {
         <h1 className="title" style={{ color: '#fff' }}>Cabin guide</h1>
       </div>
       <main className="screen" style={{ paddingTop: 14 }}>
+        <a className="card album-link" href={href('/owner/album')}>
+          <span className="meta" style={{ flex: 1 }}><span className="strong">Photo album</span><span className="small muted">Add shots of the property and the family for guests</span></span>
+          <span aria-hidden="true">›</span>
+        </a>
         <div className="row wrap" style={{ justifyContent: "space-between" }}><span className="small muted">Add or delete photos inside each section.</span><PhotoPackImport /></div>
 
         <div className="section-label">

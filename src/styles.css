@@ -256,3 +256,9 @@ textarea.input { resize: vertical; line-height: 1.45; }
 /* Guide: put away for the season */
 .list-row.stored .meta { opacity: .5; }
 .list-row.stored .strong { font-weight: 600; }
+.viewer-nav { display: flex; align-items: center; gap: 18px; }
+.viewer-arrow { width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.7); background: transparent; color: #fff; font-size: 30px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding-bottom: 4px; }
+.viewer-count { color: rgba(255,255,255,.7); font-size: 13px; }
+.album-link, .card.album-link { display: flex; flex-direction: row; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+.album-link .ico { width: 44px; height: 44px; border-radius: 12px; background: var(--orange-tint); color: var(--orange); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.album-link .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

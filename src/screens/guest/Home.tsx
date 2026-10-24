@@ -1,3 +1,4 @@
+import { AlbumLink } from './Album';
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
 import { toast } from '../../components/Toast';
@@ -85,6 +86,8 @@ export function Home() {
         </div>
       </section>
       {!sel.start && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>Tap the day you'd arrive, then the day you'd head out.</p>}
+
+      {!sel.start && <AlbumLink sub={trip ? 'The cabin, the lake and the crew' : "Never been? Here's what you're in for"} />}
 
       {sel.start && (
         <div className="bottom-action">
