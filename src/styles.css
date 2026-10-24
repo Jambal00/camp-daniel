@@ -262,3 +262,4 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .album-link, .card.album-link { display: flex; flex-direction: row; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
 .album-link .ico { width: 44px; height: 44px; border-radius: 12px; background: var(--orange-tint); color: var(--orange); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .album-link .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.album-thumb { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; flex-shrink: 0; display: block; }

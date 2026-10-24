@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StatusChip } from '../../components/bits';
 import { PhotoManager, PhotoPackImport, usePhotos } from '../../components/Photos';
+import { AlbumThumb } from '../guest/Album';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import type { AmenityStatus, GuideGroup, GuideSection, Season } from '../../data/types';
@@ -33,6 +34,7 @@ export function OwnerGuide() {
       </div>
       <main className="screen" style={{ paddingTop: 14 }}>
         <a className="card album-link" href={href('/owner/album')}>
+          <AlbumThumb />
           <span className="meta" style={{ flex: 1 }}><span className="strong">Photo album</span><span className="small muted">Add shots of the property and the family for guests</span></span>
           <span aria-hidden="true">›</span>
         </a>
