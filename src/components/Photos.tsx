@@ -85,6 +85,24 @@ export function PhotoManager({ sectionId }: { sectionId: string }) {
   const [busy, setBusy] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [turning, setTurning] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
+
+  /** Swap a photo with its neighbor, then renumber so the order is clean. */
+  const move = async (k: number, dir: -1 | 1) => {
+    if (!photos) return;
+    const list = [...photos];
+    const to = k + dir;
+    if (to < 0 || to >= list.length) return;
+    [list[k], list[to]] = [list[to], list[k]];
+    setMoving(true);
+    try {
+      await Promise.all(list.map((p, n) => (p.order === n + 1 ? null : store.updatePhoto(p.id, { order: n + 1 }))));
+    } catch {
+      toast('Couldn’t move the photo. Try again.');
+    } finally {
+      setMoving(false);
+    }
+  };
 
   const turn = async (p: GuidePhoto) => {
     setTurning(p.id);
@@ -157,23 +175,26 @@ export function PhotoManager({ sectionId }: { sectionId: string }) {
 
       {photos && photos.length > 0 && (
         <div className="card tight">
-          {photos.map((p) => (
-            <div key={p.id} className="list-row" style={{ alignItems: 'center' }}>
-              <span className="row" style={{ minWidth: 0 }}>
-                <img src={p.data} alt="" className="thumb" />
-                <span className="small" style={{ minWidth: 0 }}>{p.caption || <span className="muted">No caption</span>}</span>
+          {photos.map((p, k) => (
+            <div key={p.id} className="list-row photo-row">
+              <img src={p.data} alt="" className="thumb" />
+              <span className="photo-row-body">
+                <span className="small">{p.caption || <span className="muted">No caption</span>}</span>
+                {confirmId === p.id ? (
+                  <span className="row" style={{ gap: 6 }}>
+                    <span className="small strong">Delete this photo?</span>
+                    <button className="btn outline small" onClick={() => setConfirmId(null)}>Keep</button>
+                    <button className="btn small" style={{ background: 'var(--red-ink)', borderColor: 'var(--red-ink)' }} onClick={() => remove(p.id)}>Delete</button>
+                  </span>
+                ) : (
+                  <span className="photo-actions">
+                    <button className="icon-btn" onClick={() => move(k, -1)} disabled={k === 0 || moving} aria-label={`Move photo up${p.caption ? `: ${p.caption}` : ''}`}>↑</button>
+                    <button className="icon-btn" onClick={() => move(k, 1)} disabled={k === photos.length - 1 || moving} aria-label={`Move photo down${p.caption ? `: ${p.caption}` : ''}`}>↓</button>
+                    <button className="link-btn" onClick={() => turn(p)} disabled={turning === p.id} aria-label={`Rotate photo${p.caption ? `: ${p.caption}` : ''}`}>{turning === p.id ? '…' : 'Rotate'}</button>
+                    <button className="link-btn" style={{ color: 'var(--red-ink)' }} onClick={() => setConfirmId(p.id)} aria-label={`Delete photo${p.caption ? `: ${p.caption}` : ''}`}>Delete</button>
+                  </span>
+                )}
               </span>
-              {confirmId === p.id ? (
-                <span className="row" style={{ gap: 6, flexShrink: 0 }}>
-                  <button className="btn outline small" onClick={() => setConfirmId(null)}>Keep</button>
-                  <button className="btn small" style={{ background: 'var(--red-ink)', borderColor: 'var(--red-ink)' }} onClick={() => remove(p.id)}>Delete</button>
-                </span>
-              ) : (
-                <span className="row" style={{ gap: 14, flexShrink: 0 }}>
-                  <button className="link-btn" onClick={() => turn(p)} disabled={turning === p.id} aria-label={`Rotate photo${p.caption ? `: ${p.caption}` : ''}`}>{turning === p.id ? '…' : 'Rotate'}</button>
-                  <button className="link-btn" style={{ color: 'var(--red-ink)' }} onClick={() => setConfirmId(p.id)} aria-label={`Delete photo${p.caption ? `: ${p.caption}` : ''}`}>Delete</button>
-                </span>
-              )}
             </div>
           ))}
         </div>

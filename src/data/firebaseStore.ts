@@ -469,7 +469,7 @@ export class FirebaseStore implements DataStore {
     return p;
   }
 
-  async updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption'>>) {
+  async updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption' | 'order'>>) {
     await updateDoc(doc(db, 'photos', id), patch);
   }
 

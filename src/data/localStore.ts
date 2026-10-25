@@ -167,7 +167,7 @@ export class LocalStore implements DataStore {
     return p;
   }
 
-  async updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption'>>) {
+  async updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption' | 'order'>>) {
     this.photos = this.photos.map((p) => (p.id === id ? { ...p, ...patch } : p));
     this.savePhotos();
   }
