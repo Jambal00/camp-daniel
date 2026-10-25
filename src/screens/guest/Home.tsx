@@ -2,7 +2,7 @@ import { AlbumLink } from './Album';
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
 import { toast } from '../../components/Toast';
-import { holding, isDayTaken, nextTripFor, rangeAvailable } from '../../lib/cabin';
+import { holding, isDayTaken, nextTripFor, mapsHref, rangeAvailable } from '../../lib/cabin';
 import { daysBetween, fmtDay, fmtRange, fmtRangeLong, onDayOf, today, type ISODate } from '../../lib/dates';
 import { go, href } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -86,6 +86,16 @@ export function Home() {
         </div>
       </section>
       {!sel.start && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>Tap the day you'd arrive, then the day you'd head out.</p>}
+
+      {!sel.start && snap.settings.address && (
+        <a className="card album-link" href={mapsHref(snap.settings.address)} target="_blank" rel="noreferrer">
+          <span className="ico" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
+          </span>
+          <span className="meta" style={{ flex: 1 }}><span className="strong">Where we are</span><span className="small muted">See the cabin in Google Maps</span></span>
+          <span aria-hidden="true">›</span>
+        </a>
+      )}
 
       {!sel.start && <AlbumLink sub={trip ? 'The cabin, the lake and the crew' : "Never been? Here's what you're in for"} />}
 
