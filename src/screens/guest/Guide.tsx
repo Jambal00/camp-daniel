@@ -1,6 +1,6 @@
 import { StatusChip } from '../../components/bits';
 import { Icon } from '../../components/Icon';
-import { AlbumLink } from './Album';
+import { PhotosLink } from './PhotosHub';
 import type { GuideGroup } from '../../data/types';
 import { currentSeason, SEASON_LABEL, sortSections } from '../../lib/cabin';
 import { href } from '../../lib/router';
@@ -26,7 +26,7 @@ export function Guide() {
       </header>
       {isOwner && <a className="back" href={href('/owner/guide')} style={{ marginTop: -8 }}>‹ Back to editing</a>}
 
-      <AlbumLink />
+      <PhotosLink />
 
       {broken.map((s) => (
         <div key={s.id} className="alert">

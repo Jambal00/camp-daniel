@@ -1,5 +1,4 @@
-import { BoardLink } from './Board';
-import { AlbumLink } from './Album';
+import { PhotosLink } from './PhotosHub';
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
 import { toast } from '../../components/Toast';
@@ -98,8 +97,7 @@ export function Home() {
         </a>
       )}
 
-      {!sel.start && <AlbumLink sub={trip ? 'The cabin, the lake and the crew' : "Never been? Here's what you're in for"} />}
-      {!sel.start && <BoardLink />}
+      {!sel.start && <PhotosLink sub={trip ? 'From Pete & Trisha, and tips from other guests' : "Never been? Here's what you're in for"} />}
 
       {sel.start && (
         <div className="bottom-action">

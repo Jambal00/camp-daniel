@@ -35,7 +35,7 @@ function whenLabel(iso: string) {
 export function BoardLink({ sub = 'Photos and tips from people who have stayed', badge = 0 }: { sub?: string; badge?: number }) {
   const { isOwner } = useSession();
   return (
-    <a className="card album-link" href={href(isOwner ? '/owner/guests' : '/guests')}>
+    <a className="card album-link" href={href(isOwner ? '/owner/guests' : '/photos?tab=guests')}>
       <span className="ico" aria-hidden="true">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 9h8M8 13h5" /></svg>
       </span>
@@ -152,8 +152,8 @@ function Post({ p, canDelete }: { p: GuestPost; canDelete: boolean }) {
   );
 }
 
-/** Guest photos & tips: shared by everyone who has stayed, seen by everyone invited. */
-export function Board({ owner = false }: { owner?: boolean }) {
+/** The guest posts: compose box (for people who have stayed) and the feed. */
+export function BoardFeed({ owner = false }: { owner?: boolean }) {
   const { snap, me, isOwner, previewing } = useSession();
   const posts = usePosts();
   const hasStayed = isOwner || snap.bookings.some((b) => b.personId === me.id && b.status === 'approved' && b.start <= today());
@@ -169,13 +169,7 @@ export function Board({ owner = false }: { owner?: boolean }) {
   }, [owner, isOwner, posts]);
 
   return (
-    <main className="screen">
-      <a className="back" href={href(owner ? '/owner' : '/')}>‹ {owner ? 'Requests' : 'Calendar'}</a>
-      <header style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <h1 className="title">Guest photos &amp; tips</h1>
-        <p className="muted" style={{ margin: 0 }}>Shared by people who have stayed at Camp Daniel. Everyone on the guest list can see these.</p>
-      </header>
-
+    <>
       {previewing ? (
         <div className="callout">Guest preview: posting is turned off. Switch to Owner to post.</div>
       ) : hasStayed ? (
@@ -194,6 +188,20 @@ export function Board({ owner = false }: { owner?: boolean }) {
       ) : (
         posts.map((p) => <Post key={p.id} p={p} canDelete={!previewing && (isOwner || p.authorId === me.id)} />)
       )}
+    </>
+  );
+}
+
+/** Owners: the guest posts on their own page (from the Requests screen). */
+export function Board() {
+  return (
+    <main className="screen">
+      <a className="back" href={href('/owner')}>‹ Requests</a>
+      <header style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <h1 className="title">Guest photos &amp; tips</h1>
+        <p className="muted" style={{ margin: 0 }}>Shared by people who have stayed at Camp Daniel. Everyone on the guest list can see these.</p>
+      </header>
+      <BoardFeed owner />
     </main>
   );
 }
