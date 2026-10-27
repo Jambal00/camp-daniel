@@ -281,3 +281,4 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .seg-tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--line-soft); border-radius: 12px; padding: 4px; gap: 4px; }
 .seg-tabs button { border: 0; background: transparent; font: inherit; font-size: 15px; font-weight: 700; color: var(--muted); padding: 10px 8px; min-height: 44px; border-radius: 9px; cursor: pointer; }
 .seg-tabs button[aria-selected="true"] { background: #fff; color: var(--blue); box-shadow: 0 1px 3px rgba(26,37,51,.12); }
+.post .meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }

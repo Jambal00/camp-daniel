@@ -4,7 +4,7 @@ import { Viewer } from '../../components/Photos';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import type { GuestPost } from '../../data/types';
-import { today } from '../../lib/dates';
+import { fmtRange, today } from '../../lib/dates';
 import { rotatePhoto, shrinkPhoto } from '../../lib/image';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -47,7 +47,7 @@ export function BoardLink({ sub = 'Photos and tips from people who have stayed',
 }
 
 /** Share a photo, a tip, or both. */
-function Compose() {
+function Compose({ stay, onClearStay }: { stay: string; onClearStay: () => void }) {
   const { me } = useSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
@@ -71,7 +71,7 @@ function Compose() {
     if (!text.trim() && !photo) return;
     setBusy('Posting…');
     try {
-      await store.addPost({ authorId: me.id, authorName: me.name.replace(/\s*\(example\)/, ''), text: text.trim(), photo });
+      await store.addPost({ authorId: me.id, authorName: me.name.replace(/\s*\(example\)/, ''), text: text.trim(), photo, stay });
       setText('');
       setPhoto('');
       toast('Posted. Everyone on the guest list can see it.');
@@ -85,6 +85,12 @@ function Compose() {
   return (
     <section className="card" aria-label="Share a photo or tip">
       <div className="title-sm">Share a photo or tip</div>
+      {stay && (
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span className="chip blue">From your {stay} stay</span>
+          <button className="link-btn quiet" style={{ minHeight: 32 }} onClick={onClearStay} aria-label="Don't tie this to a stay">Not from a stay</button>
+        </div>
+      )}
       <textarea
         className="input"
         rows={3}
@@ -126,7 +132,7 @@ function Post({ p, canDelete }: { p: GuestPost; canDelete: boolean }) {
   return (
     <article className="card post">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span className="strong">{p.authorName}</span>
+        <span className="meta"><span className="strong">{p.authorName}</span>{p.stay && <span className="small muted">{p.stay} stay</span>}</span>
         <span className="small muted">{whenLabel(p.createdAt)}</span>
       </div>
       {p.photo && (
@@ -153,8 +159,10 @@ function Post({ p, canDelete }: { p: GuestPost; canDelete: boolean }) {
 }
 
 /** The guest posts: compose box (for people who have stayed) and the feed. */
-export function BoardFeed({ owner = false }: { owner?: boolean }) {
+export function BoardFeed({ owner = false, stayId }: { owner?: boolean; stayId?: string | null }) {
   const { snap, me, isOwner, previewing } = useSession();
+  const stayBooking = stayId ? snap.bookings.find((b) => b.id === stayId && b.personId === me.id) : undefined;
+  const [stay, setStay] = useState(stayBooking ? fmtRange(stayBooking.start, stayBooking.end) : '');
   const posts = usePosts();
   const hasStayed = isOwner || snap.bookings.some((b) => b.personId === me.id && b.status === 'approved' && b.start <= today());
 
@@ -173,7 +181,7 @@ export function BoardFeed({ owner = false }: { owner?: boolean }) {
       {previewing ? (
         <div className="callout">Guest preview: posting is turned off. Switch to Owner to post.</div>
       ) : hasStayed ? (
-        <Compose />
+        <Compose stay={stay} onClearStay={() => setStay('')} />
       ) : (
         <div className="callout">Once your first stay starts, you can share photos and tips here too.</div>
       )}
