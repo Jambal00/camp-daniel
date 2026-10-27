@@ -137,6 +137,16 @@ export function Trip() {
         </section>
       )}
 
+      {phase === 'staying' && (
+        <a className="card album-link" href={href('/photos?tab=guests')}>
+          <span className="ico" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" /></svg>
+          </span>
+          <span className="meta" style={{ flex: 1 }}><span className="strong">Share a photo or tip from your stay</span><span className="small muted">Other guests will see it under Photos</span></span>
+          <span aria-hidden="true">›</span>
+        </a>
+      )}
+
       {phase === 'staying' && pete?.phone && (
         <section className="card">
           <div className="title-sm">Heading out?</div>
