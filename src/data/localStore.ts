@@ -1,6 +1,6 @@
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { GuidePhoto, GuideSection, Snapshot } from './types';
+import type { GuestPost, GuidePhoto, GuideSection, Snapshot } from './types';
 
 const KEY = 'camp-daniel:v1';
 const PHOTOS_KEY = 'camp-daniel:photos';
@@ -175,6 +175,47 @@ export class LocalStore implements DataStore {
   async deletePhoto(id: string) {
     this.photos = this.photos.filter((p) => p.id !== id);
     this.savePhotos();
+  }
+
+  // ---------- guest photos & tips ----------
+  private posts: GuestPost[] = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('camp-daniel:posts') || '[]') as GuestPost[];
+    } catch {
+      return [];
+    }
+  })();
+  private postListeners = new Set<() => void>();
+
+  private savePosts() {
+    try {
+      localStorage.setItem('camp-daniel:posts', JSON.stringify(this.posts));
+    } catch {
+      /* over the browser's storage limit */
+    }
+    this.postListeners.forEach((fn) => fn());
+  }
+
+  watchPosts(onChange: (posts: GuestPost[]) => void, since?: string) {
+    const send = () =>
+      onChange([...this.posts].filter((p) => !since || p.createdAt > since).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 60));
+    send();
+    this.postListeners.add(send);
+    return () => {
+      this.postListeners.delete(send);
+    };
+  }
+
+  async addPost(input: Omit<GuestPost, 'id' | 'createdAt'>) {
+    const p = { ...input, id: uid('post'), createdAt: new Date().toISOString() };
+    this.posts = [...this.posts, p];
+    this.savePosts();
+    return p;
+  }
+
+  async deletePost(id: string) {
+    this.posts = this.posts.filter((p) => p.id !== id);
+    this.savePosts();
   }
 
   async reset() {

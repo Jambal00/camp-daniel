@@ -1,4 +1,4 @@
-import type { Booking, CabinSettings, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
+import type { Booking, CabinSettings, GuestPost, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
 
 /**
  * The one seam between the screens and wherever data lives.
@@ -36,6 +36,11 @@ export interface DataStore {
   addPhoto(input: Omit<GuidePhoto, 'id' | 'createdAt'>): Promise<GuidePhoto>;
   updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption' | 'order'>>): Promise<void>;
   deletePhoto(id: string): Promise<void>;
+
+  /** Guest photos & tips, newest first (most recent 60, or only those after `since`). Returns a stop function. */
+  watchPosts(onChange: (posts: GuestPost[]) => void, since?: string): () => void;
+  addPost(input: Omit<GuestPost, 'id' | 'createdAt'>): Promise<GuestPost>;
+  deletePost(id: string): Promise<void>;
 
   /** Development only: put the sample data back. */
   reset?(): Promise<void>;
