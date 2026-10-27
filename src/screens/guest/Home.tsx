@@ -1,4 +1,3 @@
-import { BoardLink } from './Board';
 import { AlbumLink } from './Album';
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
@@ -99,7 +98,6 @@ export function Home() {
       )}
 
       {!sel.start && <AlbumLink sub={trip ? 'The cabin, the lake and the crew' : "Never been? Here's what you're in for"} />}
-      {!sel.start && <BoardLink />}
 
       {sel.start && (
         <div className="bottom-action">

@@ -10,7 +10,6 @@ import { needsDecision } from './lib/cabin';
 import { go, useRoute, type Route } from './lib/router';
 import { SessionProvider, useSession } from './lib/session';
 import { Album } from './screens/guest/Album';
-import { Board } from './screens/guest/Board';
 import { Contact } from './screens/guest/Contact';
 import { Guide } from './screens/guest/Guide';
 import { GuideSection } from './screens/guest/GuideSection';
@@ -135,7 +134,6 @@ function pickScreen({ path, query }: Route, isOwner: boolean) {
     if (b === 'approve' && c) return <Approve id={c} />;
     if (b === 'calendar') return <OwnerCalendar />;
     if (b === 'album') return <OwnerAlbum />;
-    if (b === 'guests') return <Board owner />;
     if (b === 'guide' && c) return <EditSection key={c} id={c} group={query.get('group')} amenity={query.get('amenity') === '1'} />;
     if (b === 'guide') return <OwnerGuide />;
     if (b === 'people') return <People />;
@@ -148,7 +146,6 @@ function pickScreen({ path, query }: Route, isOwner: boolean) {
   if (a === 'guide') return <Guide />;
   if (a === 'contact') return <Contact />;
   if (a === 'album') return <Album />;
-  if (a === 'guests') return <Board />;
   if (isOwner && !a) return <OwnerHome />;
   return <Home />;
 }

@@ -12,7 +12,7 @@ export function usePhotos(sectionId: string): GuidePhoto[] | null {
 }
 
 /** Full-screen view; swipe or use the arrows to move through the set. Tap the backdrop or Close to dismiss. */
-export function Viewer({ photos, start, onClose }: { photos: GuidePhoto[]; start: number; onClose: () => void }) {
+function Viewer({ photos, start, onClose }: { photos: GuidePhoto[]; start: number; onClose: () => void }) {
   const [i, setI] = useState(start);
   const touchX = useRef<number | null>(null);
   const n = photos.length;
