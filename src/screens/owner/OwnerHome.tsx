@@ -1,3 +1,4 @@
+import { BoardLink, postsSeenAt, usePosts } from '../guest/Board';
 import { useState } from 'react';
 import { TierChip } from '../../components/bits';
 import { toast } from '../../components/Toast';
@@ -19,6 +20,8 @@ export function OwnerHome() {
     .filter((b) => b.end >= today() && b.status === 'approved')
     .sort((a, b) => a.start.localeCompare(b.start))
     .slice(0, 4);
+  const [seen] = useState(postsSeenAt);
+  const newPosts = (usePosts(seen) ?? []).filter((p) => p.authorId !== me.id);
   const departed = snap.bookings.filter((b) => b.departureNote && b.end >= addDays(today(), -30));
 
   const decline = async (id: string) => {
@@ -97,6 +100,8 @@ export function OwnerHome() {
             </div>
           </>
         )}
+
+        <BoardLink sub={newPosts.length ? 'New photos and tips from your guests' : 'Photos and tips from your guests'} badge={newPosts.length} />
 
         {upcoming.length > 0 && (
           <>

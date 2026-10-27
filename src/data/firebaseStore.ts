@@ -4,7 +4,9 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   setDoc,
   Timestamp,
@@ -20,7 +22,7 @@ import { db } from './firebase';
 import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Booking, CabinSettings, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
+import type { Booking, CabinSettings, GuestPost, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
 
 /*
   Firestore layout (see firestore.rules for who can read what):
@@ -34,6 +36,7 @@ import type { Booking, CabinSettings, GuidePhoto, GuideSection, MessageTemplate,
                         only from noon on arrival day to the end of departure day
   guide/{sectionId}     cabin guide sections
   templates/{id}        message templates
+  posts/{id}            guest photos & tips (author writes their own; everyone invited reads)
   photos/{id}           guide photos {sectionId, caption, data, order}
   settings/cabin        address, directions, Wi-Fi network, goal, season
   secrets/cabin         Wi-Fi password (owners only)
@@ -475,6 +478,28 @@ export class FirebaseStore implements DataStore {
 
   async deletePhoto(id: string) {
     await deleteDoc(doc(db, 'photos', id));
+  }
+
+  watchPosts(onChange: (posts: GuestPost[]) => void, since?: string) {
+    const q = since
+      ? query(collection(db, 'posts'), where('createdAt', '>', since), orderBy('createdAt', 'desc'), limit(60))
+      : query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(60));
+    return onSnapshot(
+      q,
+      (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as GuestPost), id: d.id }))),
+      (err) => console.warn('Camp Daniel posts', err),
+    );
+  }
+
+  async addPost(input: Omit<GuestPost, 'id' | 'createdAt'>) {
+    const ref = doc(collection(db, 'posts'));
+    const stored = { ...input, createdAt: new Date().toISOString() };
+    await setDoc(ref, stored);
+    return { ...stored, id: ref.id };
+  }
+
+  async deletePost(id: string) {
+    await deleteDoc(doc(db, 'posts', id));
   }
 
 }

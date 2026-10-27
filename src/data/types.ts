@@ -106,6 +106,18 @@ export interface Visit {
   lastSeen: string;
 }
 
+/** A photo and/or tip shared by someone who has stayed. Everyone invited can see it. */
+export interface GuestPost {
+  id: string;
+  /** Person id (their email when signed in). */
+  authorId: string;
+  authorName: string;
+  text: string;
+  /** Shrunk JPEG data URL, or '' for a words-only tip. */
+  photo: string;
+  createdAt: string;
+}
+
 export interface Snapshot {
   people: Person[];
   /** Owners only: sign-in history keyed by person id. */

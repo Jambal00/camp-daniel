@@ -22,12 +22,12 @@ export function ViewSwitch() {
     if (previewing) return;
     setPreview(lastGuest());
     // Land on the matching guest page when there is one.
-    go(path[1] === 'album' ? '/album' : path[1] === 'guide' ? (path[2] ? `/guide/${path[2]}` : '/guide') : '/');
+    go(path[1] === 'guests' ? '/guests' : path[1] === 'album' ? '/album' : path[1] === 'guide' ? (path[2] ? `/guide/${path[2]}` : '/guide') : '/');
   };
   const toOwner = () => {
     if (!previewing) return;
     setPreview(null);
-    go(path[0] === 'album' ? '/owner/album' : path[0] === 'guide' ? (path[1] ? `/owner/guide/${path[1]}` : '/owner/guide') : '/owner');
+    go(path[0] === 'guests' ? '/owner/guests' : path[0] === 'album' ? '/owner/album' : path[0] === 'guide' ? (path[1] ? `/owner/guide/${path[1]}` : '/owner/guide') : '/owner');
   };
   const pick = (id: string) => {
     setPreview(id);
