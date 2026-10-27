@@ -147,7 +147,7 @@ function pickScreen({ path, query }: Route, isOwner: boolean) {
   if (a === 'guide' && b) return <GuideSection id={b} />;
   if (a === 'guide') return <Guide />;
   if (a === 'contact') return <Contact />;
-  if (a === 'photos') return <PhotosHub tab={query.get('tab') === 'guests' ? 'guests' : 'album'} />;
+  if (a === 'photos') return <PhotosHub tab={query.get('tab') === 'guests' ? 'guests' : 'album'} stayId={query.get('stay')} />;
   if (a === 'album') return <PhotosHub tab="album" />;
   if (a === 'guests') return <PhotosHub tab="guests" />;
   if (isOwner && !a) return <OwnerHome />;

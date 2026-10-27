@@ -13,6 +13,31 @@ function seenKey(id: string) {
   return `camp-daniel:welcome-seen:${id}`;
 }
 
+/** A guest's finished stays, newest first, each with a way to share photos and tips from it. */
+function PastStays() {
+  const { snap, me, previewing } = useSession();
+  const past = snap.bookings
+    .filter((b) => b.personId === me.id && b.status === 'approved' && b.end < today())
+    .sort((a, b) => b.start.localeCompare(a.start));
+  if (past.length === 0) return null;
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="eyebrow">Past stays</div>
+      <div className="card tight">
+        {past.map((b) => (
+          <div key={b.id} className="list-row">
+            <span className="meta">
+              <span className="strong">{fmtRange(b.start, b.end)}{b.start.slice(0, 4) !== today().slice(0, 4) ? `, ${b.start.slice(0, 4)}` : ''}</span>
+              <span className="small muted">{b.names || `${b.partySize} people`}</span>
+            </span>
+            {!previewing && <a className="btn outline small" href={href(`/photos?tab=guests&stay=${b.id}`)}>Share photos &amp; tips</a>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function Trip() {
   const { snap, me, host: pete, previewing } = useSession();
   const trip = nextTripFor(me.id, snap.bookings);
@@ -37,6 +62,7 @@ export function Trip() {
           <p className="muted" style={{ margin: 0 }}>Pick some dates and Pete &amp; Trisha will get back to you.</p>
           <a className="btn" href={href('/')}>Find open dates</a>
         </Empty>
+        <PastStays />
       </main>
     );
   }
@@ -176,6 +202,7 @@ export function Trip() {
           </a>
         </section>
       )}
+      <PastStays />
     </main>
   );
 }

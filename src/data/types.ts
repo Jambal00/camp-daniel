@@ -115,6 +115,8 @@ export interface GuestPost {
   text: string;
   /** Shrunk JPEG data URL, or '' for a words-only tip. */
   photo: string;
+  /** The stay it's from, e.g. "Oct 23–26", or '' if not tied to one. */
+  stay?: string;
   createdAt: string;
 }
 

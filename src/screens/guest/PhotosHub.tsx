@@ -8,7 +8,7 @@ import { BoardFeed } from './Board';
 type Tab = 'album' | 'guests';
 
 /** One place for photos: the owners' album and what guests have shared. */
-export function PhotosHub({ tab }: { tab: Tab }) {
+export function PhotosHub({ tab, stayId }: { tab: Tab; stayId?: string | null }) {
   const pick = (t: Tab) => go(t === 'album' ? '/photos' : '/photos?tab=guests');
   return (
     <main className="screen">
@@ -26,7 +26,7 @@ export function PhotosHub({ tab }: { tab: Tab }) {
       ) : (
         <>
           <p className="muted" style={{ margin: 0 }}>Photos and tips from people who have stayed. Everyone on the guest list can see these.</p>
-          <BoardFeed />
+          <BoardFeed stayId={stayId} />
         </>
       )}
     </main>
