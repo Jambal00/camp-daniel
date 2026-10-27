@@ -97,7 +97,7 @@ export function Home() {
         </a>
       )}
 
-      {!sel.start && <PhotosLink sub={trip ? 'From Pete & Trisha, and tips from other guests' : "Never been? Here's what you're in for"} />}
+      {!sel.start && <PhotosLink />}
 
       {sel.start && (
         <div className="bottom-action">

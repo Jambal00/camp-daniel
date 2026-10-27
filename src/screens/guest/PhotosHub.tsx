@@ -1,5 +1,7 @@
 import { PhotoGallery } from '../../components/Photos';
+import { today } from '../../lib/dates';
 import { go, href } from '../../lib/router';
+import { useSession } from '../../lib/session';
 import { ALBUM, AlbumThumb } from './Album';
 import { BoardFeed } from './Board';
 
@@ -32,7 +34,10 @@ export function PhotosHub({ tab }: { tab: Tab }) {
 }
 
 /** The one card guests use to get to Photos. */
-export function PhotosLink({ sub = 'From Pete & Trisha, and from guests' }: { sub?: string }) {
+export function PhotosLink() {
+  const { snap, me } = useSession();
+  const hasStayed = snap.bookings.some((b) => b.personId === me.id && b.status === 'approved' && b.start <= today());
+  const sub = hasStayed ? 'Share your favorites from your stay' : 'Take a look around before you come up';
   return (
     <a className="card album-link" href={href('/photos')}>
       <AlbumThumb />
