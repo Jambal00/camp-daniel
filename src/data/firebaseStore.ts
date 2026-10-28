@@ -374,7 +374,7 @@ export class FirebaseStore implements DataStore {
       const allowed = ['departureNote', 'start', 'end', 'partySize', 'names', 'note', 'status', 'cancelledAt'] as const;
       const p: Record<string, unknown> = {};
       for (const k of allowed) if (k in patch) p[k] = patch[k];
-      await updateDoc(doc(db, 'bookings', id), p);
+      await updateDoc(doc(db, 'bookings', id), p as DocumentData);
       const cur = this.parts.bookings.find((b) => b.id === id)!;
       if (patch.status === 'cancelled' && cur.status === 'approved') {
         // Free the dates for everyone and drop the door code record.
