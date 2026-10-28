@@ -289,7 +289,7 @@ function Post({ p, canDelete, likes }: { p: GuestPost; canDelete: boolean; likes
           <LikeButton postId={p.id} likes={likes} />
           {canDelete && (
             <span className="row" style={{ gap: 16, flexShrink: 0 }}>
-              <button className="link-btn" style={{ minHeight: 40 }} onClick={() => { setDraft(p.text); setEditing(true); }}>{p.text ? 'Edit' : 'Add words'}</button>
+              <button className="link-btn" style={{ minHeight: 40 }} onClick={() => { setDraft(p.text); setEditing(true); }}>{p.text ? 'Edit' : 'Edit caption'}</button>
               <button className="link-btn" style={{ color: 'var(--red-ink)', minHeight: 40 }} onClick={() => setConfirm(true)}>Delete</button>
             </span>
           )}
