@@ -39,6 +39,9 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
+/* iPhone: no rubber-band bounce, so the bottom tab bar stays put when you drag past the top or bottom. */
+html, body { overscroll-behavior: none; }
+html { background: var(--bg); }
 body {
   background: var(--bg);
   color: var(--ink);
