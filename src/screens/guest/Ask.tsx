@@ -121,11 +121,8 @@ export function AskButton() {
   return (
     <>
       <button className="ask-fab" onClick={show} aria-label={fresh ? `Ask Pete & Trisha (${fresh} new answer${fresh === 1 ? '' : 's'})` : 'Ask Pete & Trisha'}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          <path d="M10 8.5a2 2 0 0 1 3.9.6c0 1.3-1.9 1.7-1.9 2.9M12 14h.01" />
-        </svg>
-        <span>Ask</span>
+        <span className="ask-q" aria-hidden="true">?</span>
+        <span className="ask-label">Ask</span>
         {fresh > 0 && <i className="ask-dot" aria-hidden="true" />}
       </button>
       {open && <AskSheet qs={qs} onClose={() => setOpen(false)} />}

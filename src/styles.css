@@ -301,3 +301,4 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .app.has-fab .screen { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
 .cal-row { flex-wrap: wrap; gap: 8px; padding: 10px 0; }
 .cal-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.ask-q { font-family: var(--display); font-size: 26px; font-weight: 800; line-height: 1; margin-top: -2px; }
