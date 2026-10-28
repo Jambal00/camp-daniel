@@ -20,6 +20,7 @@ import { Sent } from './screens/guest/Sent';
 import { Trip } from './screens/guest/Trip';
 import { Approve } from './screens/owner/Approve';
 import { OwnerAlbum } from './screens/owner/OwnerAlbum';
+import { Questions } from './screens/owner/Questions';
 import { OwnerCalendar } from './screens/owner/OwnerCalendar';
 import { EditSection, OwnerGuide } from './screens/owner/OwnerGuide';
 import { OwnerHome } from './screens/owner/OwnerHome';
@@ -135,6 +136,7 @@ function pickScreen({ path, query }: Route, isOwner: boolean) {
     if (b === 'approve' && c) return <Approve id={c} />;
     if (b === 'calendar') return <OwnerCalendar />;
     if (b === 'album') return <OwnerAlbum />;
+    if (b === 'questions') return <Questions />;
     if (b === 'guests') return <Board />;
     if (b === 'guide' && c) return <EditSection key={c} id={c} group={query.get('group')} amenity={query.get('amenity') === '1'} />;
     if (b === 'guide') return <OwnerGuide />;

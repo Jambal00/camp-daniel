@@ -22,7 +22,7 @@ import { db } from './firebase';
 import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Booking, CabinSettings, GuestPost, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
+import type { Booking, CabinSettings, GuestPost, GuestQuestion, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
 
 /*
   Firestore layout (see firestore.rules for who can read what):
@@ -36,6 +36,7 @@ import type { Booking, CabinSettings, GuestPost, GuidePhoto, GuideSection, Messa
                         only from noon on arrival day to the end of departure day
   guide/{sectionId}     cabin guide sections
   templates/{id}        message templates
+  questions/{id}        a guest's question + the owners' answer (asker and owners read)
   posts/{id}            guest photos & tips (author writes their own; everyone invited reads)
   photos/{id}           guide photos {sectionId, caption, data, order}
   settings/cabin        address, directions, Wi-Fi network, goal, season
@@ -500,6 +501,32 @@ export class FirebaseStore implements DataStore {
 
   async deletePost(id: string) {
     await deleteDoc(doc(db, 'posts', id));
+  }
+
+  watchQuestions(onChange: (qs: GuestQuestion[]) => void, askerId?: string) {
+    const q = askerId
+      ? query(collection(db, 'questions'), where('askerId', '==', askerId))
+      : query(collection(db, 'questions'), orderBy('createdAt', 'desc'), limit(100));
+    return onSnapshot(
+      q,
+      (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as GuestQuestion), id: d.id })).sort((a, b) => b.createdAt.localeCompare(a.createdAt))),
+      (err) => console.warn('Camp Daniel questions', err),
+    );
+  }
+
+  async addQuestion(input: Pick<GuestQuestion, 'askerId' | 'askerName' | 'text'>) {
+    const ref = doc(collection(db, 'questions'));
+    const stored = { ...input, answer: '', answeredAt: '', createdAt: new Date().toISOString() };
+    await setDoc(ref, stored);
+    return { ...stored, id: ref.id };
+  }
+
+  async answerQuestion(id: string, answer: string) {
+    await updateDoc(doc(db, 'questions', id), { answer, answeredAt: answer ? new Date().toISOString() : '' });
+  }
+
+  async deleteQuestion(id: string) {
+    await deleteDoc(doc(db, 'questions', id));
   }
 
 }

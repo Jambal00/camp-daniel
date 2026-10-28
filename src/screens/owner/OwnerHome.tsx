@@ -1,3 +1,4 @@
+import { QuestionsLink } from './Questions';
 import { BoardLink, postsSeenAt, usePosts } from '../guest/Board';
 import { useState } from 'react';
 import { TierChip } from '../../components/bits';
@@ -101,6 +102,7 @@ export function OwnerHome() {
           </>
         )}
 
+        <QuestionsLink />
         <BoardLink sub={newPosts.length ? 'New photos and tips from your guests' : 'Photos and tips from your guests'} badge={newPosts.length} />
 
         {upcoming.length > 0 && (

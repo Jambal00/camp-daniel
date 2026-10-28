@@ -22,7 +22,7 @@ export function ViewSwitch() {
     if (previewing) return;
     setPreview(lastGuest());
     // Land on the matching guest page when there is one.
-    go(path[1] === 'guests' ? '/photos?tab=guests' : path[1] === 'album' ? '/photos' : path[1] === 'guide' ? (path[2] ? `/guide/${path[2]}` : '/guide') : '/');
+    go(path[1] === 'questions' ? '/guide' : path[1] === 'guests' ? '/photos?tab=guests' : path[1] === 'album' ? '/photos' : path[1] === 'guide' ? (path[2] ? `/guide/${path[2]}` : '/guide') : '/');
   };
   const toOwner = () => {
     if (!previewing) return;

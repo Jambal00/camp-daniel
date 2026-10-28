@@ -285,3 +285,15 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .seg-tabs button { border: 0; background: transparent; font: inherit; font-size: 15px; font-weight: 700; color: var(--muted); padding: 10px 8px; min-height: 44px; border-radius: 9px; cursor: pointer; }
 .seg-tabs button[aria-selected="true"] { background: #fff; color: var(--blue); box-shadow: 0 1px 3px rgba(26,37,51,.12); }
 .post .meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+/* Guide: search or ask */
+.ask { gap: 10px; }
+.ask .input[type="search"] { font-size: 17px; }
+.ask-results { display: flex; flex-direction: column; gap: 2px; }
+.ask-hit { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); color: var(--ink); text-decoration: none; min-width: 0; }
+.ask-hit:last-child { border-bottom: 0; }
+.ask-hit .strong { color: var(--blue); }
+.ask-send { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
+.qa { align-items: flex-start; gap: 10px; }
+.qa .meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.qa-answer { white-space: pre-wrap; line-height: 1.45; background: var(--blue-tint, #e8eff7); border-radius: 10px; padding: 8px 10px; font-size: 15px; }

@@ -39,6 +39,10 @@ export const store: DataStore = {
   watchPosts: (cb, since) => backend().watchPosts(cb, since),
   addPost: (i) => backend().addPost(i),
   deletePost: (id) => backend().deletePost(id),
+  watchQuestions: (cb, asker) => backend().watchQuestions(cb, asker),
+  addQuestion: (i) => backend().addQuestion(i),
+  answerQuestion: (id, a) => backend().answerQuestion(id, a),
+  deleteQuestion: (id) => backend().deleteQuestion(id),
   reset: () => backend().reset?.() ?? Promise.resolve(),
 };
 

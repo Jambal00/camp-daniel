@@ -120,6 +120,18 @@ export interface GuestPost {
   createdAt: string;
 }
 
+/** A guest's question for the owners, and the owners' answer. */
+export interface GuestQuestion {
+  id: string;
+  /** Person id (their email when signed in). */
+  askerId: string;
+  askerName: string;
+  text: string;
+  answer: string;
+  answeredAt: string;
+  createdAt: string;
+}
+
 export interface Snapshot {
   people: Person[];
   /** Owners only: sign-in history keyed by person id. */

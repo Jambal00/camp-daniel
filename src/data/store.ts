@@ -1,4 +1,4 @@
-import type { Booking, CabinSettings, GuestPost, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
+import type { Booking, CabinSettings, GuestPost, GuestQuestion, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
 
 /**
  * The one seam between the screens and wherever data lives.
@@ -41,6 +41,12 @@ export interface DataStore {
   watchPosts(onChange: (posts: GuestPost[]) => void, since?: string): () => void;
   addPost(input: Omit<GuestPost, 'id' | 'createdAt'>): Promise<GuestPost>;
   deletePost(id: string): Promise<void>;
+
+  /** Questions for the owners, newest first: one person's own, or everyone's (owners). */
+  watchQuestions(onChange: (qs: GuestQuestion[]) => void, askerId?: string): () => void;
+  addQuestion(input: Pick<GuestQuestion, 'askerId' | 'askerName' | 'text'>): Promise<GuestQuestion>;
+  answerQuestion(id: string, answer: string): Promise<void>;
+  deleteQuestion(id: string): Promise<void>;
 
   /** Development only: put the sample data back. */
   reset?(): Promise<void>;

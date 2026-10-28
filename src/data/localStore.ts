@@ -1,6 +1,6 @@
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { GuestPost, GuidePhoto, GuideSection, Snapshot } from './types';
+import type { GuestPost, GuestQuestion, GuidePhoto, GuideSection, Snapshot } from './types';
 
 const KEY = 'camp-daniel:v1';
 const PHOTOS_KEY = 'camp-daniel:photos';
@@ -216,6 +216,52 @@ export class LocalStore implements DataStore {
   async deletePost(id: string) {
     this.posts = this.posts.filter((p) => p.id !== id);
     this.savePosts();
+  }
+
+  // ---------- questions for the owners ----------
+  private questions: GuestQuestion[] = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('camp-daniel:questions') || '[]') as GuestQuestion[];
+    } catch {
+      return [];
+    }
+  })();
+  private questionListeners = new Set<() => void>();
+
+  private saveQuestions() {
+    try {
+      localStorage.setItem('camp-daniel:questions', JSON.stringify(this.questions));
+    } catch {
+      /* ignore */
+    }
+    this.questionListeners.forEach((fn) => fn());
+  }
+
+  watchQuestions(onChange: (qs: GuestQuestion[]) => void, askerId?: string) {
+    const send = () =>
+      onChange(this.questions.filter((q) => !askerId || q.askerId === askerId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    send();
+    this.questionListeners.add(send);
+    return () => {
+      this.questionListeners.delete(send);
+    };
+  }
+
+  async addQuestion(input: Pick<GuestQuestion, 'askerId' | 'askerName' | 'text'>) {
+    const q = { ...input, id: uid('q'), answer: '', answeredAt: '', createdAt: new Date().toISOString() };
+    this.questions = [...this.questions, q];
+    this.saveQuestions();
+    return q;
+  }
+
+  async answerQuestion(id: string, answer: string) {
+    this.questions = this.questions.map((q) => (q.id === id ? { ...q, answer, answeredAt: answer ? new Date().toISOString() : '' } : q));
+    this.saveQuestions();
+  }
+
+  async deleteQuestion(id: string) {
+    this.questions = this.questions.filter((q) => q.id !== id);
+    this.saveQuestions();
   }
 
   async reset() {
