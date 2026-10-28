@@ -22,7 +22,7 @@ import { db } from './firebase';
 import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Booking, CabinSettings, GuestPost, GuestQuestion, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
+import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
 
 /*
   Firestore layout (see firestore.rules for who can read what):
@@ -38,6 +38,7 @@ import type { Booking, CabinSettings, GuestPost, GuestQuestion, Reminder, GuideP
   templates/{id}        message templates
   reminders/{id}        'Remind me later': a server function emails a calendar invite (and a cancel on delete)
   questions/{id}        a guest's question + the owners' answer (asker and owners read)
+  postPhotos/{id}       one photo in a guest post {postId, authorId, data, order}
   posts/{id}            guest photos & tips (author writes their own; everyone invited reads)
   photos/{id}           guide photos {sectionId, caption, data, order}
   settings/cabin        address, directions, Wi-Fi network, goal, season
@@ -502,15 +503,29 @@ export class FirebaseStore implements DataStore {
     );
   }
 
-  async addPost(input: Omit<GuestPost, 'id' | 'createdAt'>) {
+  async addPost(input: Omit<GuestPost, 'id' | 'createdAt' | 'photoCount'>, photos: string[] = []) {
     const ref = doc(collection(db, 'posts'));
-    const stored = { ...input, createdAt: new Date().toISOString() };
+    const stored = { ...input, photoCount: photos.length, createdAt: new Date().toISOString() };
     await setDoc(ref, stored);
+    // Each photo is its own record (a post record can't hold several full-size photos).
+    for (const [i, data] of photos.entries()) {
+      await setDoc(doc(collection(db, 'postPhotos')), { postId: ref.id, authorId: input.authorId, data, order: i + 1 });
+    }
     return { ...stored, id: ref.id };
   }
 
   async deletePost(id: string) {
+    const photos = await getDocs(query(collection(db, 'postPhotos'), where('postId', '==', id)));
+    for (const d of photos.docs) await deleteDoc(d.ref);
     await deleteDoc(doc(db, 'posts', id));
+  }
+
+  watchPostPhotos(postId: string, onChange: (photos: PostPhoto[]) => void) {
+    return onSnapshot(
+      query(collection(db, 'postPhotos'), where('postId', '==', postId)),
+      (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as PostPhoto), id: d.id })).sort((a, b) => a.order - b.order)),
+      (err) => console.warn('Camp Daniel post photos', err),
+    );
   }
 
   watchQuestions(onChange: (qs: GuestQuestion[]) => void, askerId?: string) {

@@ -1,6 +1,6 @@
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { GuestPost, GuestQuestion, GuidePhoto, Reminder, GuideSection, Snapshot } from './types';
+import type { GuestPost, GuestQuestion, GuidePhoto, PostPhoto, Reminder, GuideSection, Snapshot } from './types';
 
 const KEY = 'camp-daniel:v1';
 const PHOTOS_KEY = 'camp-daniel:photos';
@@ -206,16 +206,46 @@ export class LocalStore implements DataStore {
     };
   }
 
-  async addPost(input: Omit<GuestPost, 'id' | 'createdAt'>) {
-    const p = { ...input, id: uid('post'), createdAt: new Date().toISOString() };
+  private postPhotos: PostPhoto[] = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('camp-daniel:post-photos') || '[]') as PostPhoto[];
+    } catch {
+      return [];
+    }
+  })();
+
+  private savePostPhotos() {
+    try {
+      localStorage.setItem('camp-daniel:post-photos', JSON.stringify(this.postPhotos));
+    } catch {
+      /* over the browser's storage limit */
+    }
+    this.postListeners.forEach((fn) => fn());
+  }
+
+  async addPost(input: Omit<GuestPost, 'id' | 'createdAt' | 'photoCount'>, photos: string[] = []) {
+    const p: GuestPost = { ...input, photoCount: photos.length, id: uid('post'), createdAt: new Date().toISOString() };
     this.posts = [...this.posts, p];
+    this.postPhotos = [...this.postPhotos, ...photos.map((data, i) => ({ id: uid('pp'), postId: p.id, authorId: p.authorId, data, order: i + 1 }))];
+    this.savePostPhotos();
     this.savePosts();
     return p;
   }
 
   async deletePost(id: string) {
     this.posts = this.posts.filter((p) => p.id !== id);
+    this.postPhotos = this.postPhotos.filter((x) => x.postId !== id);
+    this.savePostPhotos();
     this.savePosts();
+  }
+
+  watchPostPhotos(postId: string, onChange: (photos: PostPhoto[]) => void) {
+    const send = () => onChange(this.postPhotos.filter((x) => x.postId === postId).sort((a, b) => a.order - b.order));
+    send();
+    this.postListeners.add(send);
+    return () => {
+      this.postListeners.delete(send);
+    };
   }
 
   // ---------- questions for the owners ----------

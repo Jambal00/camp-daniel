@@ -1,4 +1,4 @@
-import type { Booking, CabinSettings, GuestPost, GuestQuestion, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
+import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
 
 /**
  * The one seam between the screens and wherever data lives.
@@ -39,8 +39,11 @@ export interface DataStore {
 
   /** Guest photos & tips, newest first (most recent 60, or only those after `since`). Returns a stop function. */
   watchPosts(onChange: (posts: GuestPost[]) => void, since?: string): () => void;
-  addPost(input: Omit<GuestPost, 'id' | 'createdAt'>): Promise<GuestPost>;
+  /** Saves the post, then each photo (shrunk JPEG data URLs) linked to it. */
+  addPost(input: Omit<GuestPost, 'id' | 'createdAt' | 'photoCount'>, photos?: string[]): Promise<GuestPost>;
+  /** Removes the post and its photos. */
   deletePost(id: string): Promise<void>;
+  watchPostPhotos(postId: string, onChange: (photos: PostPhoto[]) => void): () => void;
 
   /** Questions for the owners, newest first: one person's own, or everyone's (owners). */
   watchQuestions(onChange: (qs: GuestQuestion[]) => void, askerId?: string): () => void;

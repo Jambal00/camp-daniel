@@ -117,11 +117,22 @@ export interface GuestPost {
   authorId: string;
   authorName: string;
   text: string;
-  /** Shrunk JPEG data URL, or '' for a words-only tip. */
+  /** Older posts: one shrunk JPEG data URL here. Newer posts keep photos in postPhotos. */
   photo: string;
+  /** How many photos are stored separately in postPhotos. */
+  photoCount?: number;
   /** The stay it's from, e.g. "Oct 23–26", or '' if not tied to one. */
   stay?: string;
   createdAt: string;
+}
+
+/** One photo in a guest post (kept separately so a post can hold several full-size photos). */
+export interface PostPhoto {
+  id: string;
+  postId: string;
+  authorId: string;
+  data: string;
+  order: number;
 }
 
 /** A guest's question for the owners, and the owners' answer. */

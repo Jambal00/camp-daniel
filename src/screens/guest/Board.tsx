@@ -3,13 +3,14 @@ import { LinkedText } from '../../components/LinkedText';
 import { Viewer } from '../../components/Photos';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
-import type { GuestPost } from '../../data/types';
+import type { GuestPost, PostPhoto } from '../../data/types';
 import { fmtRange, today } from '../../lib/dates';
 import { rotatePhoto, shrinkPhoto } from '../../lib/image';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
 const SEEN_KEY = 'camp-daniel:posts-seen';
+const MAX_PHOTOS = 5;
 
 export function usePosts(since?: string): GuestPost[] | null {
   const [posts, setPosts] = useState<GuestPost[] | null>(null);
@@ -29,6 +30,12 @@ export function postsSeenAt(): string {
 function whenLabel(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
+}
+
+function usePostPhotos(postId: string | null): PostPhoto[] {
+  const [photos, setPhotos] = useState<PostPhoto[]>([]);
+  useEffect(() => (postId ? store.watchPostPhotos(postId, setPhotos) : undefined), [postId]);
+  return photos;
 }
 
 /** Card linking to the board. */
@@ -51,33 +58,44 @@ function Compose({ stay, onClearStay }: { stay: string; onClearStay: () => void 
   const { me, previewing } = useSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
-  const [photo, setPhoto] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const pick = async (file: File | undefined) => {
-    if (!file) return;
-    setBusy('Preparing photo…');
+  const pick = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const room = MAX_PHOTOS - photos.length;
+    const list = Array.from(files).slice(0, room);
+    if (files.length > room) toast(`Up to ${MAX_PHOTOS} photos per post. Added the first ${room}.`);
+    const added: string[] = [];
     try {
-      setPhoto(await shrinkPhoto(file));
+      for (const [i, f] of list.entries()) {
+        setBusy(list.length > 1 ? `Preparing photo ${i + 1} of ${list.length}…` : 'Preparing photo…');
+        added.push(await shrinkPhoto(f));
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Couldn’t use that photo.');
     } finally {
+      setPhotos((cur) => [...cur, ...added].slice(0, MAX_PHOTOS));
       setBusy(null);
       if (fileRef.current) fileRef.current.value = '';
     }
   };
+  const turn = async (i: number) => {
+    const next = await rotatePhoto(photos[i]);
+    setPhotos((cur) => cur.map((x, k) => (k === i ? next : x)));
+  };
 
   const post = async () => {
-    if (!text.trim() && !photo) return;
+    if (!text.trim() && photos.length === 0) return;
     if (previewing) {
       toast('Guest preview: nothing was posted.');
       return;
     }
     setBusy('Posting…');
     try {
-      await store.addPost({ authorId: me.id, authorName: me.name.replace(/\s*\(example\)/, ''), text: text.trim(), photo, stay });
+      await store.addPost({ authorId: me.id, authorName: me.name.replace(/\s*\(example\)/, ''), text: text.trim(), photo: '', stay }, photos);
       setText('');
-      setPhoto('');
+      setPhotos([]);
       toast('Posted. Everyone on the guest list can see it.');
     } catch {
       toast('Couldn’t post. Check your connection and try again.');
@@ -106,21 +124,27 @@ function Compose({ stay, onClearStay }: { stay: string; onClearStay: () => void 
         placeholder="Best sunset spot, a great fish fry, what the kids loved…"
         aria-label="Your tip or caption"
       />
-      {photo && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <img src={photo} alt="Your photo" style={{ width: '100%', borderRadius: 10 }} />
-          <div className="row" style={{ gap: 14 }}>
-            <button className="btn outline small" disabled={!!busy} onClick={async () => setPhoto(await rotatePhoto(photo))}>↻ Rotate</button>
-            <button className="link-btn" style={{ color: 'var(--red-ink)' }} onClick={() => setPhoto('')}>Remove photo</button>
-          </div>
+      {photos.length > 0 && (
+        <div className="compose-photos">
+          {photos.map((ph, i) => (
+            <div key={i} className="compose-photo">
+              <img src={ph} alt={`Your photo ${i + 1}`} />
+              <div className="compose-photo-btns">
+                <button type="button" onClick={() => turn(i)} disabled={!!busy} aria-label={`Rotate photo ${i + 1}`}>↻</button>
+                <button type="button" onClick={() => setPhotos((cur) => cur.filter((_, k) => k !== i))} aria-label={`Remove photo ${i + 1}`}>✕</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
-      <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
+      <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => pick(e.target.files)} />
       <div className="grid-2">
-        <button className="btn outline" onClick={() => fileRef.current?.click()} disabled={!!busy}>{photo ? 'Change photo' : '+ Photo'}</button>
-        <button className="btn" onClick={post} disabled={!!busy || (!text.trim() && !photo)}>{busy === 'Posting…' ? busy : 'Post'}</button>
+        <button className="btn outline" onClick={() => fileRef.current?.click()} disabled={!!busy || photos.length >= MAX_PHOTOS}>
+          {photos.length === 0 ? '+ Photos' : photos.length >= MAX_PHOTOS ? `${MAX_PHOTOS} photos max` : '+ More photos'}
+        </button>
+        <button className="btn" onClick={post} disabled={!!busy || (!text.trim() && photos.length === 0)}>{busy === 'Posting…' ? busy : 'Post'}</button>
       </div>
-      {busy === 'Preparing photo…' && <div className="small muted">{busy}</div>}
+      <div className="small muted">{busy && busy !== 'Posting…' ? busy : `Up to ${MAX_PHOTOS} photos per post${photos.length ? ` · ${photos.length} added` : ''}. You can pick several at once.`}</div>
     </section>
   );
 }
@@ -128,7 +152,9 @@ function Compose({ stay, onClearStay }: { stay: string; onClearStay: () => void 
 function Post({ p, canDelete }: { p: GuestPost; canDelete: boolean }) {
   const { previewing } = useSession();
   const [confirm, setConfirm] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
+  const extra = usePostPhotos(p.photoCount ? p.id : null);
+  const all = [...(p.photo ? [p.photo] : []), ...extra.map((x) => x.data)];
   const remove = async () => {
     if (previewing) {
       toast('Guest preview: nothing was deleted.');
@@ -148,11 +174,21 @@ function Post({ p, canDelete }: { p: GuestPost; canDelete: boolean }) {
         <span className="meta"><span className="strong">{p.authorName}</span>{p.stay && <span className="small muted">{p.stay} stay</span>}</span>
         <span className="small muted">{whenLabel(p.createdAt)}</span>
       </div>
-      {p.photo && (
-        <button className="post-photo" onClick={() => setOpen(true)} aria-label="Enlarge photo">
-          <img src={p.photo} alt={p.text || `Photo from ${p.authorName}`} loading="lazy" />
+      {all.length === 1 && (
+        <button className="post-photo" onClick={() => setOpen(0)} aria-label="Enlarge photo">
+          <img src={all[0]} alt={p.text || `Photo from ${p.authorName}`} loading="lazy" />
         </button>
       )}
+      {all.length > 1 && (
+        <div className={`post-grid n${Math.min(all.length, 5)}`}>
+          {all.map((src, i) => (
+            <button key={i} className="post-tile" onClick={() => setOpen(i)} aria-label={`Enlarge photo ${i + 1} of ${all.length}`}>
+              <img src={src} alt="" loading="lazy" />
+            </button>
+          ))}
+        </div>
+      )}
+      {!!p.photoCount && extra.length < p.photoCount && all.length === 0 && <div className="small muted">Loading photos…</div>}
       {p.text && <p className="post-text"><LinkedText text={p.text} /></p>}
       {canDelete &&
         (confirm ? (
@@ -164,8 +200,8 @@ function Post({ p, canDelete }: { p: GuestPost; canDelete: boolean }) {
         ) : (
           <button className="link-btn" style={{ color: 'var(--red-ink)', alignSelf: 'flex-start', minHeight: 32 }} onClick={() => setConfirm(true)}>Delete</button>
         ))}
-      {open && p.photo && (
-        <Viewer photos={[{ id: p.id, sectionId: 'post', caption: p.text, data: p.photo, order: 1, createdAt: p.createdAt }]} start={0} onClose={() => setOpen(false)} />
+      {open !== null && all[open] && (
+        <Viewer photos={all.map((data, i) => ({ id: `${p.id}-${i}`, sectionId: 'post', caption: i === 0 ? p.text : '', data, order: i + 1, createdAt: p.createdAt }))} start={open} onClose={() => setOpen(null)} />
       )}
     </article>
   );
