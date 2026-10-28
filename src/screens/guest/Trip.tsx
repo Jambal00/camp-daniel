@@ -8,6 +8,9 @@ import { daysBetween, fmtDay, fmtRange, today } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 import { formatPhone } from '../../lib/phone';
+import { googleCalendarHref, icsHref } from '../../lib/calendar';
+
+const appUrl = `${window.location.origin}${window.location.pathname}`;
 
 function seenKey(id: string) {
   return `camp-daniel:welcome-seen:${id}`;
@@ -132,6 +135,15 @@ export function Trip() {
             <span className="meta"><span className="strong">Cabin guide</span><span className="small muted">Amenities, boat, local favorites</span></span>
             <span aria-hidden="true">›</span>
           </a>
+          {trip.status === 'approved' && phase !== 'done' && (
+            <div className="list-row cal-row">
+              <span className="meta"><span className="strong">Add to my calendar</span><span className="small muted">{fmtRange(trip.start, trip.end)}, with a reminder 3 days before</span></span>
+              <span className="cal-btns">
+                <a className="btn outline small" href={icsHref(trip, snap.settings.address, appUrl)} download="camp-daniel-stay.ics">Apple / Outlook</a>
+                <a className="btn outline small" href={googleCalendarHref(trip, snap.settings.address, appUrl)} target="_blank" rel="noreferrer">Google</a>
+              </span>
+            </div>
+          )}
         </div>
       </section>
 

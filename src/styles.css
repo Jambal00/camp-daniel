@@ -299,3 +299,5 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .qa .meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .qa-answer { white-space: pre-wrap; line-height: 1.45; background: var(--blue-tint, #e8eff7); border-radius: 10px; padding: 8px 10px; font-size: 15px; }
 .app.has-fab .screen { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+.cal-row { flex-wrap: wrap; gap: 8px; padding: 10px 0; }
+.cal-btns { display: flex; gap: 8px; flex-wrap: wrap; }
