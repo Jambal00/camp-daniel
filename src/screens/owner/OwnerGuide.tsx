@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StatusChip } from '../../components/bits';
-import { PhotoManager, PhotoPackImport, usePhotos } from '../../components/Photos';
+import { PhotoManager, usePhotos } from '../../components/Photos';
 import { AlbumThumb } from '../guest/Album';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
@@ -38,7 +38,6 @@ export function OwnerGuide() {
           <span className="meta" style={{ flex: 1 }}><span className="strong">Photo album</span><span className="small muted">Add shots of the property and the family for guests</span></span>
           <span aria-hidden="true">›</span>
         </a>
-        <div className="row wrap" style={{ justifyContent: "space-between" }}><span className="small muted">Add or delete photos inside each section.</span><PhotoPackImport /></div>
 
         <div className="section-label">
           <div className="eyebrow">Amenities</div>
