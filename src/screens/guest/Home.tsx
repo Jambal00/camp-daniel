@@ -106,8 +106,6 @@ export function Home() {
       </section>
       {!sel.start && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>Tap the day you'd arrive, then the day you'd head out.</p>}
 
-      {!sel.start && !changing && !trip && <RemindMe />}
-
       {!sel.start && snap.settings.address && (
         <a className="card album-link" href={mapsHref(snap.settings.address)} target="_blank" rel="noreferrer">
           <span className="ico" aria-hidden="true">
@@ -119,6 +117,8 @@ export function Home() {
       )}
 
       {!sel.start && <PhotosLink />}
+
+      {!sel.start && !changing && !trip && <RemindMe />}
 
       {sel.start && (
         <div className="bottom-action">
