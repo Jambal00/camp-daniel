@@ -135,6 +135,15 @@ export interface PostPhoto {
   order: number;
 }
 
+/** One person's like on a guest post. Id is `${postId}__${personId}`. */
+export interface PostLike {
+  id: string;
+  postId: string;
+  personId: string;
+  name: string;
+  createdAt: string;
+}
+
 /** A guest's question for the owners, and the owners' answer. */
 export interface GuestQuestion {
   id: string;

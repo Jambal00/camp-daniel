@@ -3,7 +3,7 @@ import { LinkedText } from '../../components/LinkedText';
 import { Viewer } from '../../components/Photos';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
-import type { GuestPost, PostPhoto } from '../../data/types';
+import type { GuestPost, PostLike, PostPhoto } from '../../data/types';
 import { fmtRange, today } from '../../lib/dates';
 import { rotatePhoto, shrinkPhoto } from '../../lib/image';
 import { href } from '../../lib/router';
@@ -36,6 +36,58 @@ function usePostPhotos(postId: string | null): PostPhoto[] {
   const [photos, setPhotos] = useState<PostPhoto[]>([]);
   useEffect(() => (postId ? store.watchPostPhotos(postId, setPhotos) : undefined), [postId]);
   return photos;
+}
+
+function useLikes(): Map<string, PostLike[]> {
+  const [likes, setLikes] = useState<PostLike[]>([]);
+  useEffect(() => store.watchLikes(setLikes), []);
+  const byPost = new Map<string, PostLike[]>();
+  for (const l of [...likes].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
+    byPost.set(l.postId, [...(byPost.get(l.postId) ?? []), l]);
+  }
+  return byPost;
+}
+
+function firstName(name: string) {
+  return name.replace(/\s*\(example\)/, '').split(/\s+/)[0] || name;
+}
+
+/** "You, Thad and 2 others" */
+function likedBy(likes: PostLike[], meId: string) {
+  const names = [...likes.filter((l) => l.personId === meId).map(() => 'You'), ...likes.filter((l) => l.personId !== meId).map((l) => firstName(l.name))];
+  if (names.length <= 3) return names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`;
+}
+
+function LikeButton({ postId, likes }: { postId: string; likes: PostLike[] }) {
+  const { me, previewing } = useSession();
+  const mine = likes.some((l) => l.personId === me.id);
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    if (previewing) {
+      toast('Guest preview: nothing was changed.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await store.setLike(postId, { id: me.id, name: me.name.replace(/\s*\(example\)/, '') }, !mine);
+    } catch {
+      toast('Couldn’t save that. Check your connection and try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="like-row">
+      <button className={`like-btn${mine ? ' on' : ''}`} onClick={toggle} disabled={busy} aria-pressed={mine} aria-label={mine ? 'Unlike' : 'Like'}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill={mine ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 20.5s-7.5-4.6-9.2-9.1C1.6 8.2 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.6 3.7 4.4 6.9-1.7 4.5-9.2 9.1-9.2 9.1z" />
+        </svg>
+        {likes.length > 0 && <span className="num">{likes.length}</span>}
+      </button>
+      {likes.length > 0 && <span className="small muted like-names">{likedBy(likes, me.id)}</span>}
+    </div>
+  );
 }
 
 /** Card linking to the board. */
@@ -149,7 +201,7 @@ function Compose({ stay, onClearStay }: { stay: string; onClearStay: () => void 
   );
 }
 
-function Post({ p, canDelete }: { p: GuestPost; canDelete: boolean }) {
+function Post({ p, canDelete, likes }: { p: GuestPost; canDelete: boolean; likes: PostLike[] }) {
   const { previewing } = useSession();
   const [confirm, setConfirm] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
@@ -190,16 +242,18 @@ function Post({ p, canDelete }: { p: GuestPost; canDelete: boolean }) {
       )}
       {!!p.photoCount && extra.length < p.photoCount && all.length === 0 && <div className="small muted">Loading photos…</div>}
       {p.text && <p className="post-text"><LinkedText text={p.text} /></p>}
-      {canDelete &&
-        (confirm ? (
-          <div className="row" style={{ gap: 8 }}>
-            <span className="small strong">Delete this post?</span>
-            <button className="btn outline small" onClick={() => setConfirm(false)}>Keep</button>
-            <button className="btn small" style={{ background: 'var(--red-ink)', borderColor: 'var(--red-ink)' }} onClick={remove}>Delete</button>
-          </div>
-        ) : (
-          <button className="link-btn" style={{ color: 'var(--red-ink)', alignSelf: 'flex-start', minHeight: 32 }} onClick={() => setConfirm(true)}>Delete</button>
-        ))}
+      {confirm ? (
+        <div className="row" style={{ gap: 8 }}>
+          <span className="small strong">Delete this post?</span>
+          <button className="btn outline small" onClick={() => setConfirm(false)}>Keep</button>
+          <button className="btn small" style={{ background: 'var(--red-ink)', borderColor: 'var(--red-ink)' }} onClick={remove}>Delete</button>
+        </div>
+      ) : (
+        <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+          <LikeButton postId={p.id} likes={likes} />
+          {canDelete && <button className="link-btn" style={{ color: 'var(--red-ink)', minHeight: 40, flexShrink: 0 }} onClick={() => setConfirm(true)}>Delete</button>}
+        </div>
+      )}
       {open !== null && all[open] && (
         <Viewer photos={all.map((data, i) => ({ id: `${p.id}-${i}`, sectionId: 'post', caption: i === 0 ? p.text : '', data, order: i + 1, createdAt: p.createdAt }))} start={open} onClose={() => setOpen(null)} />
       )}
@@ -213,6 +267,7 @@ export function BoardFeed({ owner = false, stayId }: { owner?: boolean; stayId?:
   const stayBooking = stayId ? snap.bookings.find((b) => b.id === stayId && b.personId === me.id) : undefined;
   const [stay, setStay] = useState(stayBooking ? fmtRange(stayBooking.start, stayBooking.end) : '');
   const posts = usePosts();
+  const likes = useLikes();
   const hasStayed = isOwner || snap.bookings.some((b) => b.personId === me.id && b.status === 'approved' && b.start <= today());
 
   // Owners: opening their board marks everything as seen.
@@ -241,7 +296,7 @@ export function BoardFeed({ owner = false, stayId }: { owner?: boolean; stayId?:
           <div className="small muted">Photos and tips from past stays will show up here.</div>
         </div>
       ) : (
-        posts.map((p) => <Post key={p.id} p={p} canDelete={isOwner || p.authorId === me.id} />)
+        posts.map((p) => <Post key={p.id} p={p} canDelete={isOwner || p.authorId === me.id} likes={likes.get(p.id) ?? []} />)
       )}
     </>
   );

@@ -22,7 +22,7 @@ import { db } from './firebase';
 import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
+import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostLike, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
 
 /*
   Firestore layout (see firestore.rules for who can read what):
@@ -39,6 +39,7 @@ import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostPhoto, Remin
   reminders/{id}        'Remind me later': a server function emails a calendar invite (and a cancel on delete)
   questions/{id}        a guest's question + the owners' answer (asker and owners read)
   postPhotos/{id}       one photo in a guest post {postId, authorId, data, order}
+  likes/{postId__email} one person's like on a guest post {postId, personId, name, createdAt}
   posts/{id}            guest photos & tips (author writes their own; everyone invited reads)
   photos/{id}           guide photos {sectionId, caption, data, order}
   settings/cabin        address, directions, Wi-Fi network, goal, season
@@ -518,6 +519,20 @@ export class FirebaseStore implements DataStore {
     const photos = await getDocs(query(collection(db, 'postPhotos'), where('postId', '==', id)));
     for (const d of photos.docs) await deleteDoc(d.ref);
     await deleteDoc(doc(db, 'posts', id));
+  }
+
+  watchLikes(onChange: (likes: PostLike[]) => void) {
+    return onSnapshot(
+      collection(db, 'likes'),
+      (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as PostLike), id: d.id }))),
+      (err) => console.warn('Camp Daniel likes', err),
+    );
+  }
+
+  async setLike(postId: string, person: { id: string; name: string }, liked: boolean) {
+    const ref = doc(db, 'likes', `${postId}__${person.id}`);
+    if (liked) await setDoc(ref, { postId, personId: person.id, name: person.name, createdAt: new Date().toISOString() });
+    else await deleteDoc(ref);
   }
 
   watchPostPhotos(postId: string, onChange: (photos: PostPhoto[]) => void) {

@@ -1,4 +1,4 @@
-import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
+import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostLike, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
 
 /**
  * The one seam between the screens and wherever data lives.
@@ -44,6 +44,10 @@ export interface DataStore {
   /** Removes the post and its photos. */
   deletePost(id: string): Promise<void>;
   watchPostPhotos(postId: string, onChange: (photos: PostPhoto[]) => void): () => void;
+  /** Every like on guest posts (small: one doc per person per post). */
+  watchLikes(onChange: (likes: PostLike[]) => void): () => void;
+  /** Like or unlike a post as this person. */
+  setLike(postId: string, person: { id: string; name: string }, liked: boolean): Promise<void>;
 
   /** Questions for the owners, newest first: one person's own, or everyone's (owners). */
   watchQuestions(onChange: (qs: GuestQuestion[]) => void, askerId?: string): () => void;

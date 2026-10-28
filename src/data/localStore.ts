@@ -1,6 +1,6 @@
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { GuestPost, GuestQuestion, GuidePhoto, PostPhoto, Reminder, GuideSection, Snapshot } from './types';
+import type { GuestPost, GuestQuestion, GuidePhoto, PostLike, PostPhoto, Reminder, GuideSection, Snapshot } from './types';
 
 const KEY = 'camp-daniel:v1';
 const PHOTOS_KEY = 'camp-daniel:photos';
@@ -235,6 +235,12 @@ export class LocalStore implements DataStore {
   async deletePost(id: string) {
     this.posts = this.posts.filter((p) => p.id !== id);
     this.postPhotos = this.postPhotos.filter((x) => x.postId !== id);
+    this.likes = this.likes.filter((l) => l.postId !== id);
+    try {
+      localStorage.setItem('camp-daniel:likes', JSON.stringify(this.likes));
+    } catch {
+      /* ignore */
+    }
     this.savePostPhotos();
     this.savePosts();
   }
@@ -246,6 +252,36 @@ export class LocalStore implements DataStore {
     return () => {
       this.postListeners.delete(send);
     };
+  }
+
+  // ---------- likes on guest posts ----------
+  private likes: PostLike[] = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('camp-daniel:likes') || '[]') as PostLike[];
+    } catch {
+      return [];
+    }
+  })();
+
+  watchLikes(onChange: (likes: PostLike[]) => void) {
+    const send = () => onChange([...this.likes]);
+    send();
+    this.postListeners.add(send);
+    return () => {
+      this.postListeners.delete(send);
+    };
+  }
+
+  async setLike(postId: string, person: { id: string; name: string }, liked: boolean) {
+    const id = `${postId}__${person.id}`;
+    this.likes = this.likes.filter((l) => l.id !== id);
+    if (liked) this.likes.push({ id, postId, personId: person.id, name: person.name, createdAt: new Date().toISOString() });
+    try {
+      localStorage.setItem('camp-daniel:likes', JSON.stringify(this.likes));
+    } catch {
+      /* ignore */
+    }
+    this.postListeners.forEach((fn) => fn());
   }
 
   // ---------- questions for the owners ----------
