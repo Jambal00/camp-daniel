@@ -50,6 +50,12 @@ jobs:
           } > functions/.env
 
       - if: steps.keys.outputs.ready == 'true'
+        name: Switch on Google services the deploy needs
+        run: |
+          gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
+          gcloud services enable cloudbilling.googleapis.com cloudfunctions.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com --project camp-daniel --quiet
+
+      - if: steps.keys.outputs.ready == 'true'
         name: Deploy
         run: |
           set -o pipefail
