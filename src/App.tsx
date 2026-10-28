@@ -21,6 +21,7 @@ import { Trip } from './screens/guest/Trip';
 import { Approve } from './screens/owner/Approve';
 import { OwnerAlbum } from './screens/owner/OwnerAlbum';
 import { Questions } from './screens/owner/Questions';
+import { AskButton } from './screens/guest/Ask';
 import { OwnerCalendar } from './screens/owner/OwnerCalendar';
 import { EditSection, OwnerGuide } from './screens/owner/OwnerGuide';
 import { OwnerHome } from './screens/owner/OwnerHome';
@@ -114,16 +115,18 @@ function Shell() {
   const fullScreen = ['request', 'sent'].includes(route.path[0]) || route.path[1] === 'approve' || (route.path[0] === 'owner' && route.path[1] === 'guide' && route.path[2]);
   // Owners get the owner tabs on their home screen too; guest pages they open (guide preview) keep guest tabs.
   const ownerArea = isOwner && (route.path[0] === 'owner' || route.path.length === 0);
+  const showAsk = !fullScreen && !isOwner;
   const tabs = ownerArea ? ownerTabs(needsDecision(snap).length) : GUEST_TABS;
 
   return (
-    <div className="app">
+    <div className={`app${showAsk ? ' has-fab' : ''}`}>
       <UpdateBanner />
       {/* Sample-data mode only: switch between guest and owner. */}
       {MODE === 'local' ? <DevBar /> : null}
       <ViewSwitch />
       {screen}
       {!fullScreen && <TabBar tabs={tabs} path={route.path} />}
+      {showAsk && <AskButton />}
       <Toaster />
     </div>
   );

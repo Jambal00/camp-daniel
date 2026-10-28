@@ -286,14 +286,16 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .seg-tabs button[aria-selected="true"] { background: #fff; color: var(--blue); box-shadow: 0 1px 3px rgba(26,37,51,.12); }
 .post .meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
-/* Guide: search or ask */
-.ask { gap: 10px; }
-.ask .input[type="search"] { font-size: 17px; }
-.ask-results { display: flex; flex-direction: column; gap: 2px; }
-.ask-hit { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); color: var(--ink); text-decoration: none; min-width: 0; }
-.ask-hit:last-child { border-bottom: 0; }
-.ask-hit .strong { color: var(--blue); }
-.ask-send { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
+/* Ask Pete & Trisha: floating button + bottom sheet */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ask-fab { position: fixed; z-index: 25; right: max(16px, calc((100vw - 480px) / 2 + 16px), env(safe-area-inset-right, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); display: inline-flex; align-items: center; gap: 6px; padding: 0 16px 0 14px; height: 48px; border: 0; border-radius: 999px; background: var(--blue); color: #fff; font: inherit; font-weight: 700; font-size: 15px; box-shadow: 0 6px 18px rgba(26,37,51,.25); cursor: pointer; }
+.ask-dot { position: absolute; top: 6px; right: 8px; width: 10px; height: 10px; border-radius: 50%; background: var(--orange-bright); border: 2px solid var(--blue); }
+.sheet-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(10,20,32,.45); display: flex; align-items: flex-end; justify-content: center; }
+.sheet { width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); border-radius: 18px 18px 0 0; display: flex; flex-direction: column; gap: 12px; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.sheet-grip { width: 40px; height: 5px; border-radius: 99px; background: var(--line); align-self: center; }
+.sheet-list { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+.qa-item { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--surface); border-radius: 12px; border: 1px solid var(--line-soft); }
 .qa { align-items: flex-start; gap: 10px; }
 .qa .meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .qa-answer { white-space: pre-wrap; line-height: 1.45; background: var(--blue-tint, #e8eff7); border-radius: 10px; padding: 8px 10px; font-size: 15px; }
+.app.has-fab .screen { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }

@@ -24,7 +24,7 @@ export function QuestionsLink() {
       </span>
       <span className="meta" style={{ flex: 1 }}>
         <span className="strong">Guest questions</span>
-        <span className="small muted">{waiting ? 'Questions from the Guide are waiting for you' : 'Questions guests ask from the Guide'}</span>
+        <span className="small muted">{waiting ? 'Guests are waiting for an answer' : 'What guests ask with the Ask button'}</span>
       </span>
       {waiting > 0 && <span className="chip pick num">{waiting} waiting</span>}
       <span aria-hidden="true">›</span>
@@ -45,7 +45,7 @@ function QuestionCard({ q }: { q: GuestQuestion }) {
     try {
       await store.answerQuestion(q.id, answer.trim());
       setEditing(false);
-      toast(`Answer saved. ${asker?.shortName ?? 'They'} will see it in the Guide.`);
+      toast(`Answer saved. ${asker?.shortName ?? 'They'} will see it under Ask.`);
     } catch {
       toast('Couldn’t save the answer. Try again.');
     }
@@ -125,14 +125,14 @@ export function Questions() {
       <a className="back" href={href('/owner')}>‹ Requests</a>
       <header style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <h1 className="title">Guest questions</h1>
-        <p className="muted" style={{ margin: 0 }}>Asked from the Guide. Your answer shows up in that guest’s Guide. Add good ones to the guide so the next guest finds them.</p>
+        <p className="muted" style={{ margin: 0 }}>Sent with the Ask button. Your answer shows up for that guest under Ask. Add good ones to the guide so the next guest finds them.</p>
       </header>
       {qs === null ? (
         <div className="muted">Loading…</div>
       ) : qs.length === 0 ? (
         <div className="card" style={{ textAlign: 'center' }}>
           <div className="strong">No questions yet</div>
-          <div className="small muted">When a guest can’t find something in the Guide, their question lands here.</div>
+          <div className="small muted">When a guest taps Ask and sends a question, it lands here.</div>
         </div>
       ) : (
         <>
