@@ -22,7 +22,7 @@ import { db } from './firebase';
 import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Booking, CabinSettings, GuestPost, GuestQuestion, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
+import type { Booking, CabinSettings, GuestPost, GuestQuestion, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
 
 /*
   Firestore layout (see firestore.rules for who can read what):
@@ -36,6 +36,7 @@ import type { Booking, CabinSettings, GuestPost, GuestQuestion, GuidePhoto, Guid
                         only from noon on arrival day to the end of departure day
   guide/{sectionId}     cabin guide sections
   templates/{id}        message templates
+  reminders/{id}        'Remind me later': a server function emails a calendar invite (and a cancel on delete)
   questions/{id}        a guest's question + the owners' answer (asker and owners read)
   posts/{id}            guest photos & tips (author writes their own; everyone invited reads)
   photos/{id}           guide photos {sectionId, caption, data, order}
@@ -536,6 +537,25 @@ export class FirebaseStore implements DataStore {
 
   async deleteQuestion(id: string) {
     await deleteDoc(doc(db, 'questions', id));
+  }
+
+  watchReminders(personId: string, onChange: (rs: Reminder[]) => void) {
+    return onSnapshot(
+      query(collection(db, 'reminders'), where('personId', '==', personId)),
+      (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as Reminder), id: d.id })).sort((a, b) => a.remindOn.localeCompare(b.remindOn))),
+      (err) => console.warn('Camp Daniel reminders', err),
+    );
+  }
+
+  async addReminder(input: Pick<Reminder, 'personId' | 'email' | 'name' | 'remindOn'>) {
+    const ref = doc(collection(db, 'reminders'));
+    const stored = { ...input, status: 'queued' as const, createdAt: new Date().toISOString() };
+    await setDoc(ref, stored);
+    return { ...stored, id: ref.id };
+  }
+
+  async deleteReminder(id: string) {
+    await deleteDoc(doc(db, 'reminders', id));
   }
 
 }
