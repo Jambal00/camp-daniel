@@ -50,4 +50,11 @@ jobs:
           } > functions/.env
 
       - if: steps.keys.outputs.ready == 'true'
-        run: npx --yes firebase-tools@14 deploy --only functions --project camp-daniel --force --non-interactive
+        name: Deploy
+        run: |
+          set -o pipefail
+          if ! npx --yes firebase-tools@14 deploy --only functions --project camp-daniel --force --non-interactive 2>&1 | tee "$RUNNER_TEMP/deploy.log"; then
+            # Surface the reason as annotations (readable without the raw log).
+            grep -iE 'error|denied|permission|billing|enable|api |not been used|failed' "$RUNNER_TEMP/deploy.log" | grep -v '^\s*$' | tail -12 | sed 's/^/::error::/'
+            exit 1
+          fi
