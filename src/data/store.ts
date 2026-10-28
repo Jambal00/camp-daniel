@@ -1,4 +1,4 @@
-import type { Booking, CabinSettings, GuestPost, GuestQuestion, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
+import type { Booking, CabinSettings, GuestPost, GuestQuestion, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
 
 /**
  * The one seam between the screens and wherever data lives.
@@ -47,6 +47,12 @@ export interface DataStore {
   addQuestion(input: Pick<GuestQuestion, 'askerId' | 'askerName' | 'text'>): Promise<GuestQuestion>;
   answerQuestion(id: string, answer: string): Promise<void>;
   deleteQuestion(id: string): Promise<void>;
+
+  /** One person's "Remind me later" reminders. Saving one emails a calendar invite (server side). */
+  watchReminders(personId: string, onChange: (rs: Reminder[]) => void): () => void;
+  addReminder(input: Pick<Reminder, 'personId' | 'email' | 'name' | 'remindOn'>): Promise<Reminder>;
+  /** Deleting a sent reminder emails a cancellation. */
+  deleteReminder(id: string): Promise<void>;
 
   /** Development only: put the sample data back. */
   reset?(): Promise<void>;

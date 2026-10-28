@@ -43,6 +43,9 @@ export const store: DataStore = {
   addQuestion: (i) => backend().addQuestion(i),
   answerQuestion: (id, a) => backend().answerQuestion(id, a),
   deleteQuestion: (id) => backend().deleteQuestion(id),
+  watchReminders: (pid, cb) => backend().watchReminders(pid, cb),
+  addReminder: (i) => backend().addReminder(i),
+  deleteReminder: (id) => backend().deleteReminder(id),
   reset: () => backend().reset?.() ?? Promise.resolve(),
 };
 

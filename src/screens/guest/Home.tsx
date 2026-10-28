@@ -1,3 +1,4 @@
+import { RemindMe } from './RemindMe';
 import { PhotosLink } from './PhotosHub';
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
@@ -104,6 +105,8 @@ export function Home() {
         </div>
       </section>
       {!sel.start && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>Tap the day you'd arrive, then the day you'd head out.</p>}
+
+      {!sel.start && !changing && !trip && <RemindMe />}
 
       {!sel.start && snap.settings.address && (
         <a className="card album-link" href={mapsHref(snap.settings.address)} target="_blank" rel="noreferrer">

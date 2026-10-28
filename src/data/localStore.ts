@@ -1,6 +1,6 @@
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { GuestPost, GuestQuestion, GuidePhoto, GuideSection, Snapshot } from './types';
+import type { GuestPost, GuestQuestion, GuidePhoto, Reminder, GuideSection, Snapshot } from './types';
 
 const KEY = 'camp-daniel:v1';
 const PHOTOS_KEY = 'camp-daniel:photos';
@@ -262,6 +262,50 @@ export class LocalStore implements DataStore {
   async deleteQuestion(id: string) {
     this.questions = this.questions.filter((q) => q.id !== id);
     this.saveQuestions();
+  }
+
+  // ---------- reminders (demo: pretend the invite was emailed) ----------
+  private reminders: Reminder[] = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('camp-daniel:reminders') || '[]') as Reminder[];
+    } catch {
+      return [];
+    }
+  })();
+  private reminderListeners = new Set<() => void>();
+
+  private saveReminders() {
+    try {
+      localStorage.setItem('camp-daniel:reminders', JSON.stringify(this.reminders));
+    } catch {
+      /* ignore */
+    }
+    this.reminderListeners.forEach((fn) => fn());
+  }
+
+  watchReminders(personId: string, onChange: (rs: Reminder[]) => void) {
+    const send = () => onChange(this.reminders.filter((r) => r.personId === personId).sort((a, b) => a.remindOn.localeCompare(b.remindOn)));
+    send();
+    this.reminderListeners.add(send);
+    return () => {
+      this.reminderListeners.delete(send);
+    };
+  }
+
+  async addReminder(input: Pick<Reminder, 'personId' | 'email' | 'name' | 'remindOn'>) {
+    const r: Reminder = { ...input, id: uid('rem'), status: 'queued', createdAt: new Date().toISOString() };
+    this.reminders = [...this.reminders, r];
+    this.saveReminders();
+    window.setTimeout(() => {
+      this.reminders = this.reminders.map((x): Reminder => (x.id === r.id ? { ...x, status: 'sent', sentAt: new Date().toISOString() } : x));
+      this.saveReminders();
+    }, 900);
+    return r;
+  }
+
+  async deleteReminder(id: string) {
+    this.reminders = this.reminders.filter((r) => r.id !== id);
+    this.saveReminders();
   }
 
   async reset() {

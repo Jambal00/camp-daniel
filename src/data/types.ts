@@ -136,6 +136,22 @@ export interface GuestQuestion {
   createdAt: string;
 }
 
+/** "Remind me later": the day a guest wants an emailed calendar reminder to check the calendar. */
+export interface Reminder {
+  id: string;
+  /** Person id (their email when signed in). */
+  personId: string;
+  email: string;
+  name: string;
+  /** YYYY-MM-DD; the reminder is at 9:00 AM Central that day. */
+  remindOn: string;
+  /** queued -> sent (invite emailed) or failed. Set by the server. */
+  status: 'queued' | 'sent' | 'failed';
+  createdAt: string;
+  sentAt?: string;
+  error?: string;
+}
+
 export interface Snapshot {
   people: Person[];
   /** Owners only: sign-in history keyed by person id. */

@@ -305,3 +305,9 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .ask-q { font-family: var(--display); font-size: 26px; font-weight: 800; line-height: 1; margin-top: -2px; }
 .row-btn { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line-soft); font: inherit; text-align: left; cursor: pointer; padding-left: 0; padding-right: 0; }
 .day.mine.changing { background: var(--blue-tint); border: 2px dashed var(--blue); color: var(--blue); }
+
+/* Remind me later */
+.remind { gap: 12px; }
+.remind-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--blue-tint); }
+.remind-row .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.remind-pick { display: flex; flex-direction: column; gap: 10px; }
