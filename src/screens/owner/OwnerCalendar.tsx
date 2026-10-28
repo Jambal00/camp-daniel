@@ -16,7 +16,7 @@ function initials(name: string) {
 
 export function OwnerCalendar() {
   const { snap, me } = useSession();
-  const live = snap.bookings.filter((b) => b.status !== 'declined');
+  const live = snap.bookings.filter((b) => b.status !== 'declined' && b.status !== 'cancelled');
   const [sel, setSel] = useState<{ start?: ISODate; end?: ISODate }>({});
   const [focus, setFocus] = useState<string | null>(null);
   const [mode, setMode] = useState<'block' | 'book'>('block');

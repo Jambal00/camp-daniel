@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Empty, StayTimeline } from '../../components/bits';
+import type { Booking } from '../../data/types';
+import { Empty, Stepper, StayTimeline } from '../../components/bits';
 import { Icon } from '../../components/Icon';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
-import { accessUnlocked, fillTemplate, mapsHref, nextTripFor, smsHref, stayPhase } from '../../lib/cabin';
+import { accessUnlocked, changeRequestFor, fillTemplate, mapsHref, nextTripFor, smsHref, stayPhase } from '../../lib/cabin';
 import { daysBetween, fmtDay, fmtRange, today } from '../../lib/dates';
-import { href } from '../../lib/router';
+import { go, href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 import { formatPhone } from '../../lib/phone';
 import { googleCalendarHref, icsHref } from '../../lib/calendar';
@@ -36,6 +37,117 @@ function PastStays() {
             <a className="btn outline small" href={href(`/photos?tab=guests&stay=${b.id}`)}>Share photos &amp; tips</a>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+/** Change dates or people, or cancel. Before the stay starts only. */
+function ManageTrip({ trip }: { trip: Booking }) {
+  const { snap, previewing } = useSession();
+  const change = trip.status === 'approved' ? changeRequestFor(trip, snap.bookings) : undefined;
+  const [mode, setMode] = useState<null | 'people' | 'cancel'>(null);
+  const [party, setParty] = useState(trip.partySize);
+  const [names, setNames] = useState(trip.names);
+  const kind = trip.status === 'approved' ? 'stay' : 'request';
+
+  const blocked = () => {
+    if (!previewing) return false;
+    toast('Guest preview: nothing was changed.');
+    return true;
+  };
+  const savePeople = async () => {
+    if (blocked()) return;
+    try {
+      await store.updateBooking(trip.id, { partySize: party, names: names.trim() });
+      setMode(null);
+      toast('Saved. Pete & Trisha will see the update.');
+    } catch {
+      toast('Couldn’t save that. Try again.');
+    }
+  };
+  const cancel = async () => {
+    if (blocked()) return;
+    const at = new Date().toISOString();
+    try {
+      if (change) await store.updateBooking(change.id, { status: 'cancelled', cancelledAt: at });
+      await store.updateBooking(trip.id, { status: 'cancelled', cancelledAt: at });
+      setMode(null);
+      toast(`Your ${kind} is cancelled. Pete & Trisha will see it.`);
+      go('/trip');
+    } catch {
+      toast('Couldn’t cancel. Check your connection and try again.');
+    }
+  };
+  const withdraw = async () => {
+    if (blocked() || !change) return;
+    try {
+      await store.updateBooking(change.id, { status: 'cancelled', cancelledAt: new Date().toISOString() });
+      toast(`Change withdrawn. You're still booked for ${fmtRange(trip.start, trip.end)}.`);
+    } catch {
+      toast('Couldn’t withdraw it. Try again.');
+    }
+  };
+
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="eyebrow">Change or cancel</div>
+      {change && (
+        <div className="callout" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span>You asked to move this stay to <b>{fmtRange(change.start, change.end)}</b>. Waiting on Pete &amp; Trisha; you keep these dates until they approve.</span>
+          <button className="link-btn" style={{ minHeight: 32, alignSelf: 'flex-start' }} onClick={withdraw}>Withdraw the change</button>
+        </div>
+      )}
+      <div className="card tight">
+        {trip.status === 'pending' && (
+          <a className="list-row" href={href(`/?change=${trip.id}`)}>
+            <span className="meta"><span className="strong">Change dates or details</span><span className="small muted">Pick new dates, update who's coming</span></span>
+            <span aria-hidden="true">›</span>
+          </a>
+        )}
+        {trip.status === 'approved' && (
+          mode === 'people' ? (
+            <div className="list-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10, padding: '12px 0' }}>
+              <div className="field">
+                <label htmlFor="mparty">How many people?</label>
+                <Stepper id="mparty" value={party} onChange={setParty} max={9} />
+              </div>
+              <div className="field">
+                <label htmlFor="mnames">Who's coming?</label>
+                <input id="mnames" className="input" value={names} onChange={(e) => setNames(e.target.value)} placeholder="Names of your crew" />
+              </div>
+              <div className="grid-2">
+                <button className="btn outline small" onClick={() => { setParty(trip.partySize); setNames(trip.names); setMode(null); }}>Cancel</button>
+                <button className="btn small" onClick={savePeople}>Save</button>
+              </div>
+            </div>
+          ) : (
+            <button className="list-row row-btn" onClick={() => setMode('people')}>
+              <span className="meta"><span className="strong">Update who's coming</span><span className="small muted">{trip.partySize} people{trip.names ? ` · ${trip.names}` : ''}</span></span>
+              <span aria-hidden="true">›</span>
+            </button>
+          )
+        )}
+        {trip.status === 'approved' && !change && (
+          <a className="list-row" href={href(`/?change=${trip.id}`)}>
+            <span className="meta"><span className="strong">Ask for different dates</span><span className="small muted">You keep these dates until Pete &amp; Trisha approve</span></span>
+            <span aria-hidden="true">›</span>
+          </a>
+        )}
+        {mode === 'cancel' ? (
+          <div className="list-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10, padding: '12px 0', borderBottom: 0 }}>
+            <div className="strong">Cancel your {fmtRange(trip.start, trip.end)} {kind}?</div>
+            <div className="small muted">{trip.status === 'approved' ? 'The dates open up for others and Pete & Trisha see that you cancelled.' : 'Pete & Trisha will see that you withdrew it.'}</div>
+            <div className="grid-2">
+              <button className="btn outline small" onClick={() => setMode(null)}>Keep it</button>
+              <button className="btn small" style={{ background: 'var(--red-ink)', borderColor: 'var(--red-ink)' }} onClick={cancel}>Cancel {kind}</button>
+            </div>
+          </div>
+        ) : (
+          <button className="list-row row-btn" style={{ borderBottom: 0 }} onClick={() => setMode('cancel')}>
+            <span className="meta"><span className="strong" style={{ color: 'var(--red-ink)' }}>Cancel this {kind}</span></span>
+          </button>
+        )}
       </div>
     </section>
   );
@@ -214,6 +326,8 @@ export function Trip() {
           </a>
         </section>
       )}
+      {(phase === 'requested' || phase === 'upcoming') && <ManageTrip key={trip.id} trip={trip} />}
+
       <PastStays />
     </main>
   );

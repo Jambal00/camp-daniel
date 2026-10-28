@@ -13,7 +13,7 @@ export function Approve({ id }: { id: string }) {
   const b = snap.bookings.find((x) => x.id === id);
   const p = b ? personById(snap.people, b.personId) : undefined;
   const tpl = snap.templates.find((t) => t.id === 'welcome');
-  const [welcome, setWelcome] = useState(() => b?.welcomeNote || fillTemplate(tpl?.body ?? '', { first: p?.shortName ?? 'Friends' }));
+  const [welcome, setWelcome] = useState(() => b?.welcomeNote || (b?.replaces ? snap.bookings.find((x) => x.id === b.replaces)?.welcomeNote : '') || fillTemplate(tpl?.body ?? '', { first: p?.shortName ?? 'Friends' }));
   const [code, setCode] = useState(b?.doorCode ?? '');
   const [done, setDone] = useState(false);
   // Remember whether this was already approved when the screen opened,
@@ -29,7 +29,9 @@ export function Approve({ id }: { id: string }) {
     );
   }
 
-  const free = rangeAvailable(b.start, b.end, snap.bookings, b.id);
+  // A change of dates replaces an approved stay; that stay's own days don't count against it.
+  const replaced = b.replaces ? snap.bookings.find((x) => x.id === b.replaces && x.status === 'approved') : undefined;
+  const free = rangeAvailable(b.start, b.end, snap.bookings.filter((x) => x.id !== replaced?.id), b.id);
 
   const save = async () => {
     await store.updateBooking(b.id, {
@@ -38,6 +40,8 @@ export function Approve({ id }: { id: string }) {
       doorCode: code.trim(),
       decidedAt: b.decidedAt ?? new Date().toISOString(),
     });
+    // Moving a stay: the old dates go away once the new ones are approved.
+    if (replaced) await store.updateBooking(replaced.id, { status: 'cancelled', cancelledAt: new Date().toISOString() });
     setDone(true);
   };
 

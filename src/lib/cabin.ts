@@ -67,10 +67,17 @@ export function weekendsAddedBy(pending: Booking[], bookings: Booking[], year: n
 }
 
 /** Someone's next trip: the soonest pending or approved stay that hasn't ended. */
+/** A pending change-of-dates request for an approved stay, if there is one. */
+export function changeRequestFor(stay: Booking, bookings: Booking[]): Booking | undefined {
+  return bookings.find((b) => b.replaces === stay.id && b.status === 'pending');
+}
+
 export function nextTripFor(personId: string, bookings: Booking[]): Booking | undefined {
   const t = today();
+  // A change request rides along with the stay it would replace, so it isn't a trip of its own.
   return bookings
     .filter((b) => b.personId === personId && (b.status === 'pending' || b.status === 'approved') && b.end >= t)
+    .filter((b) => !(b.status === 'pending' && b.replaces && bookings.some((o) => o.id === b.replaces && o.status === 'approved')))
     .sort((a, b) => a.start.localeCompare(b.start))[0];
 }
 

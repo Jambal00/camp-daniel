@@ -4,11 +4,15 @@ import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
 import { toast } from '../../components/Toast';
 import { holding, isDayTaken, nextTripFor, mapsHref, rangeAvailable } from '../../lib/cabin';
 import { daysBetween, fmtDay, fmtRange, fmtRangeLong, onDayOf, today, type ISODate } from '../../lib/dates';
-import { go, href } from '../../lib/router';
+import { go, href, useRoute } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
 export function Home() {
   const { snap, me } = useSession();
+  const { query } = useRoute();
+  // Picking new dates for one of your own bookings: its days count as open.
+  const changing = snap.bookings.find((b) => b.id === query.get('change') && b.personId === me.id && (b.status === 'pending' || b.status === 'approved'));
+  const ignoreId = changing?.id;
   const [sel, setSel] = useState<{ start?: ISODate; end?: ISODate }>({});
   const t = today();
   const trip = nextTripFor(me.id, snap.bookings);
@@ -25,6 +29,7 @@ export function Home() {
     if (sel.start && (d === sel.start || d === sel.end)) return { className: 'selected', state: 'selected' };
     if (sel.start && sel.end && d > sel.start && d < sel.end) return { className: 'in-range', state: 'selected' };
     const m = mine.find((b) => onDayOf(d, b.start, b.end));
+    if (m && m.id === ignoreId) return { className: 'mine changing', state: 'the dates you are changing' };
     if (m) return { className: `mine ${m.status}`, state: m.status === 'pending' ? 'your request' : 'your stay' };
     if (others.some((b) => onDayOf(d, b.start, b.end))) return { className: 'booked', state: 'booked' };
     return { className: '', state: 'open' };
@@ -32,30 +37,37 @@ export function Home() {
 
   const pick = (d: ISODate) => {
     if (!sel.start || sel.end || d <= sel.start) {
-      if (isDayTaken(d, snap.bookings)) {
+      if (isDayTaken(d, snap.bookings, ignoreId)) {
         toast('That day is already booked.');
         return;
       }
       setSel({ start: d });
       return;
     }
-    if (!rangeAvailable(sel.start, d, snap.bookings)) {
+    if (!rangeAvailable(sel.start, d, snap.bookings, ignoreId)) {
       toast('Those dates run into a booked stay. Try a shorter trip.');
       return;
     }
     setSel({ start: sel.start, end: d });
   };
 
-  const request = (start: ISODate, end: ISODate) => go(`/request?start=${start}&end=${end}`);
+  const request = (start: ISODate, end: ISODate) => go(`/request?start=${start}&end=${end}${changing ? `&change=${changing.id}` : ''}`);
 
   return (
     <main className={`screen${sel.start ? ' with-bottom-action' : ''}`}>
       <header style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div className="eyebrow">Camp Daniel · #sconnicabin</div>
-        <h1 className="title">Hi {me.shortName}! Come on up.</h1>
+        <h1 className="title">{changing ? 'Pick new dates' : `Hi ${me.shortName}! Come on up.`}</h1>
       </header>
 
-      {trip?.status === 'approved' && (
+      {changing && (
+        <div className="callout row" style={{ justifyContent: 'space-between', gap: 10 }}>
+          <span>Changing your {fmtRange(changing.start, changing.end)} {changing.status === 'approved' ? 'stay' : 'request'}. Tap the day you'd arrive, then the day you'd head out.</span>
+          <a className="link-btn" style={{ minHeight: 32, flexShrink: 0 }} href={href('/trip')}>Never mind</a>
+        </div>
+      )}
+
+      {!changing && trip?.status === 'approved' && (
         <a href={href('/trip')} className="card" style={{ textDecoration: 'none', color: 'inherit', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <div>
             <div className="eyebrow">Your stay</div>
@@ -65,7 +77,7 @@ export function Home() {
         </a>
       )}
 
-      {trip?.status === 'pending' && (
+      {!changing && trip?.status === 'pending' && (
         <a href={href('/trip')} className="card" style={{ textDecoration: 'none', color: 'inherit', gap: 8 }}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <div className="strong">Your request · {fmtRange(trip.start, trip.end)}</div>

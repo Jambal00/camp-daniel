@@ -21,7 +21,7 @@ export interface Person {
   tier: Tier;
 }
 
-export type BookingStatus = 'pending' | 'approved' | 'declined' | 'blocked';
+export type BookingStatus = 'pending' | 'approved' | 'declined' | 'blocked' | 'cancelled';
 
 export interface Booking {
   id: string;
@@ -44,6 +44,10 @@ export interface Booking {
   departureNote?: string;
   /** Day (YYYY-MM-DD) an owner told the neighbors about this stay. */
   neighborsToldOn?: string;
+  /** When the guest cancelled it. */
+  cancelledAt?: string;
+  /** For a change-of-dates request: the approved stay it would replace. */
+  replaces?: string;
 }
 
 export type GuideGroup = 'arrive' | 'stay' | 'leave';

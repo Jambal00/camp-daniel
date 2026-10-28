@@ -303,3 +303,5 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .cal-row { flex-wrap: wrap; gap: 8px; padding: 10px 0; }
 .cal-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .ask-q { font-family: var(--display); font-size: 26px; font-weight: 800; line-height: 1; margin-top: -2px; }
+.row-btn { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line-soft); font: inherit; text-align: left; cursor: pointer; padding-left: 0; padding-right: 0; }
+.day.mine.changing { background: var(--blue-tint); border: 2px dashed var(--blue); color: var(--blue); }

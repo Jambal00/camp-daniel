@@ -23,6 +23,9 @@ export function OwnerHome() {
     .slice(0, 4);
   const [seen] = useState(postsSeenAt);
   const newPosts = (usePosts(seen) ?? []).filter((p) => p.authorId !== me.id);
+  const cancelled = snap.bookings
+    .filter((b) => b.status === 'cancelled' && b.cancelledAt && b.cancelledAt >= addDays(today(), -14) && !snap.bookings.some((x) => x.replaces === b.id && x.decidedAt))
+    .sort((a, b) => (b.cancelledAt ?? '').localeCompare(a.cancelledAt ?? ''));
   const departed = snap.bookings.filter((b) => b.departureNote && b.end >= addDays(today(), -30));
 
   const decline = async (id: string) => {
@@ -72,6 +75,10 @@ export function OwnerHome() {
                 <div>
                   <div className="strong" style={{ fontSize: 17 }}>{p?.name ?? 'Unknown'}</div>
                   <div className="small muted">{fmtRange(b.start, b.end)} · {b.partySize} people</div>
+                  {b.replaces && (() => {
+                    const old = snap.bookings.find((x) => x.id === b.replaces);
+                    return old ? <div className="small strong" style={{ color: 'var(--orange)' }}>Change of dates · now booked {fmtRange(old.start, old.end)}</div> : null;
+                  })()}
                 </div>
                 {p && <TierChip tier={p.tier} />}
               </div>
@@ -96,6 +103,22 @@ export function OwnerHome() {
               {departed.map((b) => (
                 <div key={b.id} className="list-row" style={{ alignItems: 'flex-start', padding: '10px 0' }}>
                   <span className="meta"><span className="strong">{personById(snap.people, b.personId)?.shortName} · {fmtRange(b.start, b.end)}</span><span className="small">{b.departureNote}</span></span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {cancelled.length > 0 && (
+          <>
+            <div className="eyebrow" style={{ paddingTop: 6 }}>Cancelled by guests</div>
+            <div className="card tight">
+              {cancelled.map((b) => (
+                <div key={b.id} className="list-row">
+                  <span className="meta">
+                    <span className="strong">{personById(snap.people, b.personId)?.shortName ?? 'A guest'} · {fmtRange(b.start, b.end)}</span>
+                    <span className="small muted">{b.replaces && !b.decidedAt ? 'Withdrew a change of dates' : b.status === 'cancelled' && !b.decidedAt ? 'Withdrew a request' : 'Dates are open again'} · {new Date(b.cancelledAt!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                  </span>
                 </div>
               ))}
             </div>

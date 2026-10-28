@@ -369,9 +369,18 @@ export class FirebaseStore implements DataStore {
 
   async updateBooking(id: string, patch: Partial<Booking>) {
     if (!this.isOwner) {
-      // Guests can only leave a departure note.
-      await updateDoc(doc(db, 'bookings', id), { departureNote: patch.departureNote ?? '' });
+      // Guests: departure note; change a pending request; update who's coming; or cancel.
+      // The security rules decide which of these each booking allows.
+      const allowed = ['departureNote', 'start', 'end', 'partySize', 'names', 'note', 'status', 'cancelledAt'] as const;
+      const p: Record<string, unknown> = {};
+      for (const k of allowed) if (k in patch) p[k] = patch[k];
+      await updateDoc(doc(db, 'bookings', id), p);
       const cur = this.parts.bookings.find((b) => b.id === id)!;
+      if (patch.status === 'cancelled' && cur.status === 'approved') {
+        // Free the dates for everyone and drop the door code record.
+        await deleteDoc(doc(db, 'busy', id)).catch((e) => console.warn('Camp Daniel busy', e));
+        await deleteDoc(doc(db, 'access', id)).catch((e) => console.warn('Camp Daniel access', e));
+      }
       return { ...cur, ...patch };
     }
     const cur = this.parts.bookings.find((b) => b.id === id);
