@@ -15,7 +15,7 @@ function seenKey(id: string) {
 
 /** A guest's finished stays, newest first, each with a way to share photos and tips from it. */
 function PastStays() {
-  const { snap, me, previewing } = useSession();
+  const { snap, me } = useSession();
   const past = snap.bookings
     .filter((b) => b.personId === me.id && b.status === 'approved' && b.end < today())
     .sort((a, b) => b.start.localeCompare(a.start));
@@ -30,7 +30,7 @@ function PastStays() {
               <span className="strong">{fmtRange(b.start, b.end)}{b.start.slice(0, 4) !== today().slice(0, 4) ? `, ${b.start.slice(0, 4)}` : ''}</span>
               <span className="small muted">{b.names || `${b.partySize} people`}</span>
             </span>
-            {!previewing && <a className="btn outline small" href={href(`/photos?tab=guests&stay=${b.id}`)}>Share photos &amp; tips</a>}
+            <a className="btn outline small" href={href(`/photos?tab=guests&stay=${b.id}`)}>Share photos &amp; tips</a>
           </div>
         ))}
       </div>
