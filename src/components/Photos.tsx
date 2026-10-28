@@ -77,7 +77,7 @@ export function PhotoGallery({ sectionId, empty = null }: { sectionId: string; e
 }
 
 /** Owners: add photos (camera or library, shrunk on the phone) and delete them. */
-export function PhotoManager({ sectionId }: { sectionId: string }) {
+export function PhotoManager({ sectionId, addFirst = false }: { sectionId: string; addFirst?: boolean }) {
   const photos = usePhotos(sectionId);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -166,14 +166,7 @@ export function PhotoManager({ sectionId }: { sectionId: string }) {
     setConfirmId(null);
   };
 
-  return (
-    <div className="field">
-      <div className="section-label">
-        <div className="label">Photos</div>
-        <span className="small muted">{photos ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : 'Loading…'}</span>
-      </div>
-
-      {photos && photos.length > 0 && (
+  const photoList = photos && photos.length > 0 && (
         <div className="card tight">
           {photos.map((p, k) => (
             <div key={p.id} className="list-row photo-row">
@@ -198,9 +191,9 @@ export function PhotoManager({ sectionId }: { sectionId: string }) {
             </div>
           ))}
         </div>
-      )}
+      );
 
-      {pending ? (
+  const addArea = pending ? (
         <div className="card">
           <img src={pending} alt="New photo preview" style={{ width: '100%', borderRadius: 10 }} />
           <button className="btn outline small" onClick={turnPending} disabled={busy}>↻ Rotate</button>
@@ -218,7 +211,17 @@ export function PhotoManager({ sectionId }: { sectionId: string }) {
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
           <button className="btn outline" onClick={() => fileRef.current?.click()} disabled={busy}>{busy ? 'Preparing photo…' : '+ Add a photo'}</button>
         </>
-      )}
+      );
+
+  return (
+    <div className="field">
+      <div className="section-label">
+        <div className="label">Photos</div>
+        <span className="small muted">{photos ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : 'Loading…'}</span>
+      </div>
+
+      {addFirst ? addArea : photoList}
+      {addFirst ? photoList : addArea}
     </div>
   );
 }

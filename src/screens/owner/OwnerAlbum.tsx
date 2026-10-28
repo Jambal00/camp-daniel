@@ -60,8 +60,7 @@ export function OwnerAlbum() {
       <h1 className="title">Photo album</h1>
       <p className="muted" style={{ margin: 0 }}>Shots of the property and the family for guests to browse, especially first-timers. New photos go to the end; use the ↑ ↓ arrows to change the order.</p>
       <CoverPicker />
-      <PhotoManager sectionId={ALBUM} />
-      <a className="btn outline" href={href('/photos')}>See it the way guests do</a>
+      <PhotoManager sectionId={ALBUM} addFirst />
     </main>
   );
 }
