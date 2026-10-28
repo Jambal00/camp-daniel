@@ -1,0 +1,56 @@
+name: Send a test reminder invite
+
+# Run by hand: Actions › "Send a test reminder invite" › Run workflow.
+# Creates a reminder for the given email (as if a guest set one) and reports whether the invite went out.
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: Email address to send the test invite to
+        required: true
+      days:
+        description: Days from today for the reminder
+        required: false
+        default: '7'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --prefix functions --no-audit --no-fund
+      - name: Create the test reminder and wait for the invite
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TO: ${{ inputs.email }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          cd functions
+          node -e '
+            const admin = require("firebase-admin");
+            admin.initializeApp({ projectId: "camp-daniel" });
+            const db = admin.firestore();
+            (async () => {
+              const day = new Date(Date.now() + Number(process.env.DAYS || 7) * 86400000).toISOString().slice(0, 10);
+              const to = process.env.TO.trim().toLowerCase();
+              const ref = await db.collection("reminders").add({ personId: to, email: to, name: "Test", remindOn: day, status: "queued", createdAt: new Date().toISOString() });
+              console.log("Created test reminder", ref.id, "for", day);
+              for (let i = 0; i < 40; i++) {
+                await new Promise((r) => setTimeout(r, 3000));
+                const d = (await ref.get()).data();
+                if (d.status !== "queued") {
+                  console.log("Status:", d.status, d.error || "");
+                  if (d.status !== "sent") process.exit(1);
+                  return;
+                }
+              }
+              console.log("Still queued after 2 minutes: the function may not be deployed.");
+              process.exit(1);
+            })();
+          '

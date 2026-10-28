@@ -1,0 +1,53 @@
+name: Deploy server functions
+
+on:
+  push:
+    branches: [main]
+    paths: ['functions/**', 'firebase.json', '.github/workflows/functions.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Skip quietly until Pete has added the keys in GitHub › Settings › Secrets.
+      - id: keys
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RESEND: ${{ secrets.RESEND_API_KEY }}
+          FROM: ${{ secrets.MAIL_FROM }}
+        run: |
+          if [ -n "$SA" ] && [ -n "$RESEND" ] && [ -n "$FROM" ]; then echo "ready=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::Server keys aren't all set yet (FIREBASE_SERVICE_ACCOUNT, RESEND_API_KEY, MAIL_FROM). Skipping deploy."; fi
+
+      - if: steps.keys.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - if: steps.keys.outputs.ready == 'true'
+        run: npm install --prefix functions --no-audit --no-fund
+
+      - if: steps.keys.outputs.ready == 'true'
+        name: Write settings
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RESEND: ${{ secrets.RESEND_API_KEY }}
+          FROM: ${{ secrets.MAIL_FROM }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+          {
+            echo "RESEND_API_KEY=$RESEND"
+            echo "MAIL_FROM=$FROM"
+            echo "APP_URL=https://jambal00.github.io/camp-daniel/"
+          } > functions/.env
+
+      - if: steps.keys.outputs.ready == 'true'
+        run: npx --yes firebase-tools@14 deploy --only functions --project camp-daniel --force --non-interactive
