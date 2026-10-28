@@ -515,6 +515,10 @@ export class FirebaseStore implements DataStore {
     return { ...stored, id: ref.id };
   }
 
+  async editPost(id: string, text: string) {
+    await updateDoc(doc(db, 'posts', id), { text, editedAt: new Date().toISOString() });
+  }
+
   async deletePost(id: string) {
     const photos = await getDocs(query(collection(db, 'postPhotos'), where('postId', '==', id)));
     for (const d of photos.docs) await deleteDoc(d.ref);

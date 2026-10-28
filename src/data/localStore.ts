@@ -232,6 +232,11 @@ export class LocalStore implements DataStore {
     return p;
   }
 
+  async editPost(id: string, text: string) {
+    this.posts = this.posts.map((p) => (p.id === id ? { ...p, text, editedAt: new Date().toISOString() } : p));
+    this.savePosts();
+  }
+
   async deletePost(id: string) {
     this.posts = this.posts.filter((p) => p.id !== id);
     this.postPhotos = this.postPhotos.filter((x) => x.postId !== id);

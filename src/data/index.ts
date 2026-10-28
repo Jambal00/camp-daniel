@@ -42,6 +42,7 @@ export const store: DataStore = {
   watchLikes: (cb) => backend().watchLikes(cb),
   setLike: (postId, person, liked) => backend().setLike(postId, person, liked),
   deletePost: (id) => backend().deletePost(id),
+  editPost: (id, text) => backend().editPost(id, text),
   watchQuestions: (cb, asker) => backend().watchQuestions(cb, asker),
   addQuestion: (i) => backend().addQuestion(i),
   answerQuestion: (id, a) => backend().answerQuestion(id, a),

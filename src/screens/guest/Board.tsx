@@ -204,6 +204,9 @@ function Compose({ stay, onClearStay }: { stay: string; onClearStay: () => void 
 function Post({ p, canDelete, likes }: { p: GuestPost; canDelete: boolean; likes: PostLike[] }) {
   const { previewing } = useSession();
   const [confirm, setConfirm] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(p.text);
+  const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
   const extra = usePostPhotos(p.photoCount ? p.id : null);
   const all = [...(p.photo ? [p.photo] : []), ...extra.map((x) => x.data)];
@@ -220,11 +223,34 @@ function Post({ p, canDelete, likes }: { p: GuestPost; canDelete: boolean; likes
       toast('Couldn’t delete it. Try again.');
     }
   };
+  const hasPhotos = !!p.photo || !!p.photoCount;
+  const save = async () => {
+    const text = draft.trim();
+    if (text === p.text) {
+      setEditing(false);
+      return;
+    }
+    if (previewing) {
+      toast('Guest preview: nothing was changed.');
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await store.editPost(p.id, text);
+      setEditing(false);
+      toast('Post updated.');
+    } catch {
+      toast('Couldn’t save that. Check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <article className="card post">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span className="meta"><span className="strong">{p.authorName}</span>{p.stay && <span className="small muted">{p.stay} stay</span>}</span>
-        <span className="small muted">{whenLabel(p.createdAt)}</span>
+        <span className="small muted">{whenLabel(p.createdAt)}{p.editedAt ? ' · Edited' : ''}</span>
       </div>
       {all.length === 1 && (
         <button className="post-photo" onClick={() => setOpen(0)} aria-label="Enlarge photo">
@@ -241,8 +267,18 @@ function Post({ p, canDelete, likes }: { p: GuestPost; canDelete: boolean; likes
         </div>
       )}
       {!!p.photoCount && extra.length < p.photoCount && all.length === 0 && <div className="small muted">Loading photos…</div>}
-      {p.text && <p className="post-text"><LinkedText text={p.text} /></p>}
-      {confirm ? (
+      {editing ? (
+        <div className="post-edit">
+          <textarea className="input" rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={2000} aria-label="Edit your tip or caption" autoFocus />
+          <div className="grid-2">
+            <button className="btn outline" onClick={() => { setDraft(p.text); setEditing(false); }} disabled={saving}>Cancel</button>
+            <button className="btn" onClick={save} disabled={saving || (!draft.trim() && !hasPhotos)}>{saving ? 'Saving…' : 'Save'}</button>
+          </div>
+        </div>
+      ) : (
+        p.text && <p className="post-text"><LinkedText text={p.text} /></p>
+      )}
+      {editing ? null : confirm ? (
         <div className="row" style={{ gap: 8 }}>
           <span className="small strong">Delete this post?</span>
           <button className="btn outline small" onClick={() => setConfirm(false)}>Keep</button>
@@ -251,7 +287,12 @@ function Post({ p, canDelete, likes }: { p: GuestPost; canDelete: boolean; likes
       ) : (
         <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
           <LikeButton postId={p.id} likes={likes} />
-          {canDelete && <button className="link-btn" style={{ color: 'var(--red-ink)', minHeight: 40, flexShrink: 0 }} onClick={() => setConfirm(true)}>Delete</button>}
+          {canDelete && (
+            <span className="row" style={{ gap: 16, flexShrink: 0 }}>
+              <button className="link-btn" style={{ minHeight: 40 }} onClick={() => { setDraft(p.text); setEditing(true); }}>{p.text ? 'Edit' : 'Add words'}</button>
+              <button className="link-btn" style={{ color: 'var(--red-ink)', minHeight: 40 }} onClick={() => setConfirm(true)}>Delete</button>
+            </span>
+          )}
         </div>
       )}
       {open !== null && all[open] && (

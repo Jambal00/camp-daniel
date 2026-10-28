@@ -280,6 +280,7 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .post-photo { padding: 0; border: 0; background: var(--line-soft); border-radius: 10px; overflow: hidden; cursor: zoom-in; display: block; width: 100%; }
 .post-photo img { width: 100%; max-height: 420px; object-fit: contain; display: block; }
 .post-text { margin: 0; white-space: pre-wrap; line-height: 1.5; }
+.post-edit { display: flex; flex-direction: column; gap: 8px; }
 .like-row { display: flex; min-width: 0; align-items: center; gap: 8px; min-height: 40px; }
 .like-btn { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; min-width: 44px; padding: 0 10px 0 8px; margin-left: -8px; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; border-radius: 20px; }
 .like-btn.on { color: var(--red-ink); }

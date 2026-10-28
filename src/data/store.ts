@@ -43,6 +43,8 @@ export interface DataStore {
   addPost(input: Omit<GuestPost, 'id' | 'createdAt' | 'photoCount'>, photos?: string[]): Promise<GuestPost>;
   /** Removes the post and its photos. */
   deletePost(id: string): Promise<void>;
+  /** Fix the words on a post (author or owner). */
+  editPost(id: string, text: string): Promise<void>;
   watchPostPhotos(postId: string, onChange: (photos: PostPhoto[]) => void): () => void;
   /** Every like on guest posts (small: one doc per person per post). */
   watchLikes(onChange: (likes: PostLike[]) => void): () => void;

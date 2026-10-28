@@ -124,6 +124,8 @@ export interface GuestPost {
   /** The stay it's from, e.g. "Oct 23–26", or '' if not tied to one. */
   stay?: string;
   createdAt: string;
+  /** Set when the words were changed after posting. */
+  editedAt?: string;
 }
 
 /** One photo in a guest post (kept separately so a post can hold several full-size photos). */
