@@ -149,6 +149,7 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .day .tag { font-size: 10px; font-weight: 700; line-height: 1; }
 .day.empty { visibility: hidden; }
 .day.past { color: var(--faint); background: transparent; border-color: transparent; cursor: default; }
+.day.past.mine-past { background: var(--blue-tint); border-color: var(--blue-tint); color: var(--blue); font-weight: 600; }
 .day.booked { background: var(--booked); color: var(--faint); border-color: var(--booked); cursor: default; }
 /* Your request (waiting): dashed outline. Your stay (approved): solid blue. */
 .day.mine { background: #eef3f9; border: 2px dashed var(--blue); color: var(--blue); font-weight: 700; }

@@ -15,8 +15,13 @@ export function Home() {
   const mine = snap.bookings.filter((b) => b.personId === me.id && (b.status === 'pending' || b.status === 'approved'));
   const others = holding(snap.bookings).filter((b) => b.personId !== me.id);
 
+  const pastStays = mine.filter((b) => b.status === 'approved' && b.start < t);
   const look = (d: ISODate): DayLook => {
-    if (d < t) return { className: 'past', disabled: true };
+    if (d < t) {
+      // Past days can't be picked, but your own past stays stay marked.
+      const p = pastStays.find((b) => onDayOf(d, b.start, b.end));
+      return p ? { className: 'past mine-past', disabled: true, state: 'your past stay' } : { className: 'past', disabled: true };
+    }
     if (sel.start && (d === sel.start || d === sel.end)) return { className: 'selected', state: 'selected' };
     if (sel.start && sel.end && d > sel.start && d < sel.end) return { className: 'in-range', state: 'selected' };
     const m = mine.find((b) => onDayOf(d, b.start, b.end));
@@ -77,11 +82,12 @@ export function Home() {
       )}
 
       <section className="card" aria-label="Availability calendar">
-        <MonthCalendar look={look} onPick={pick} noPast />
+        <MonthCalendar look={look} onPick={pick} noPast={pastStays.length === 0} />
         <div className="legend">
           <span><i className="sw" style={{ background: '#fff', border: '1px solid var(--line)' }} />Open</span>
           <span><i className="sw" style={{ background: 'var(--booked)' }} />Booked</span>
-          {mine.some((b) => b.status === 'approved') && <span><i className="sw" style={{ background: 'var(--blue)' }} />Your stay</span>}
+          {mine.some((b) => b.status === 'approved' && b.end >= t) && <span><i className="sw" style={{ background: 'var(--blue)' }} />Your stay</span>}
+          {pastStays.length > 0 && <span><i className="sw" style={{ background: 'var(--blue-tint)', border: '1px solid var(--blue)' }} />Past stay</span>}
           {mine.some((b) => b.status === 'pending') && <span><i className="sw" style={{ border: '2px dashed var(--blue)' }} />Your request</span>}
         </div>
       </section>
