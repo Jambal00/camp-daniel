@@ -29,7 +29,7 @@ jobs:
       - if: steps.keys.outputs.ready == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - if: steps.keys.outputs.ready == 'true'
         run: npm install --prefix functions --no-audit --no-fund
