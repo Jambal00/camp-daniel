@@ -3,6 +3,7 @@ import { toast } from '../../components/Toast';
 import { MODE, store } from '../../data';
 import { SignOutButton } from '../SignIn';
 import { VersionLabel } from '../../components/UpdateBanner';
+import { NotificationsSettings } from '../../components/Notifications';
 import { TIER_LABEL, type Tier, type Visit } from '../../data/types';
 import { holding, mailHref, smsHref } from '../../lib/cabin';
 import { fmtRange, fromISO, today } from '../../lib/dates';
@@ -183,6 +184,7 @@ export function People() {
             </section>
           );
         })}
+        <NotificationsSettings />
         {MODE === 'firebase' && <SignOutButton />}
         <VersionLabel />
       </main>

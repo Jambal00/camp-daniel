@@ -1,12 +1,13 @@
 {
   "name": "camp-daniel-functions",
   "private": true,
-  "description": "Server side for Camp Daniel: emails calendar invites for 'Remind me later' and makes photo thumbnails.",
+  "description": "Server side for Camp Daniel: emails calendar invites for 'Remind me later' makes photo thumbnails and sends phone notifications.",
   "main": "index.js",
   "engines": { "node": "22" },
   "dependencies": {
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.1.0",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "web-push": "^3.6.7"
   }
 }

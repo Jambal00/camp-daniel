@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { listenForNotificationTaps } from './lib/push';
 import { GUEST_TABS, ownerTabs, TabBar } from './components/TabBar';
 import { Toaster } from './components/Toast';
 import { ViewSwitch } from './components/PreviewBar';
@@ -50,6 +51,7 @@ function Loading() {
 
 export default function App() {
   const data = useData();
+  useEffect(() => listenForNotificationTaps(), []);
   switch (data.status) {
     case 'loading':
       return <Loading />;

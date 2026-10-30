@@ -166,7 +166,8 @@ exports.cancelReminderInvite = functions.firestore.document('reminders/{id}').on
 });
 
 // ---------- New stay requests: email the owners ----------
-const { buildRequestEmail } = require('./requests');
+const { buildRequestEmail, fmtShort } = require('./requests');
+const { pushToPeople, sendTo } = require('./push');
 
 async function ownerEmails() {
   const owners = await admin.firestore().collection('people').where('tier', '==', 'owner').get();
@@ -196,10 +197,43 @@ exports.notifyNewRequest = functions.firestore.document('bookings/{id}').onCreat
       appUrl: appUrl(),
     });
     const guestEmail = (person && person.email) || (String(b.personId).includes('@') ? b.personId : '');
+    // Phone notification first (it's the quick one), then the email as the record.
+    const who = (person && person.name) || b.names || 'Someone';
+    const n = Math.round((new Date(`${b.end}T12:00:00Z`) - new Date(`${b.start}T12:00:00Z`)) / 86400000);
+    try {
+      const r = await pushToPeople(db, owners, {
+        title: b.replaces ? `Change of dates: ${who}` : `New request: ${who}`,
+        body: `${fmtShort(b.start, b.end)} · ${n} night${n === 1 ? '' : 's'} · party of ${b.partySize || '?'}${b.note ? ` · “${String(b.note).slice(0, 80)}”` : ''}`,
+        url: `${appUrl()}#/owner/approve/${id}`,
+        tag: `request-${id}`,
+      });
+      console.log('Request push', id, r);
+    } catch (e) {
+      console.error('Request push failed', id, e);
+    }
     await sendMail({ to: owners, replyTo: guestEmail || undefined, ...mail });
     console.log('Request email sent', id, 'to', owners.length, 'owners');
   } catch (e) {
     console.error('Request email failed', id, e);
+  }
+});
+
+// A phone just turned notifications on, or asked for a test: send one so they can see it works.
+exports.pushSubscriptionTest = functions.firestore.document('pushSubs/{id}').onWrite(async (change, ctx) => {
+  if (!change.after.exists) return;
+  const a = change.after.data();
+  const b = change.before.exists ? change.before.data() : null;
+  if (b && b.testAt === a.testAt) return;
+  try {
+    const r = await sendTo(admin.firestore(), change.after.ref, JSON.parse(a.sub), {
+      title: b ? 'Camp Daniel test' : 'Notifications are on',
+      body: b ? 'This is your test notification. Tap to open the app.' : 'You’ll get a notification here when someone asks for dates.',
+      url: `${appUrl()}#/owner`,
+      tag: 'camp-daniel-test',
+    });
+    console.log('Push test', ctx.params.id, r);
+  } catch (e) {
+    console.error('Push test failed', ctx.params.id, e && e.statusCode, e && e.body);
   }
 });
 

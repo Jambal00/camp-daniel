@@ -1,4 +1,5 @@
 import { QuestionsLink } from './Questions';
+import { NotificationsPrompt } from '../../components/Notifications';
 import { BoardLink, postsSeenAt, usePosts } from '../guest/Board';
 import { useState } from 'react';
 import { TierChip } from '../../components/bits';
@@ -59,6 +60,8 @@ export function OwnerHome() {
           <h1 className="title-sm" style={{ fontSize: 24 }}>Needs you</h1>
           {pending.length > 0 && <span className="chip pick num">{pending.length}</span>}
         </div>
+
+        <NotificationsPrompt />
 
         {pending.length === 0 && (
           <div className="card" style={{ textAlign: 'center' }}>
