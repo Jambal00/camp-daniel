@@ -1,0 +1,45 @@
+name: Make group trip holds tentative
+
+# One-time (safe to re-run): group trips still voting whose date choices were saved
+# as "blocked" become "tentative", so guests can still request those dates.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --prefix functions --no-audit --no-fund
+      - name: Convert
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          cd functions
+          node -e '
+            const admin = require("firebase-admin");
+            admin.initializeApp({ projectId: "camp-daniel" });
+            const db = admin.firestore();
+            (async () => {
+              const trips = await db.collection("groupTrips").where("status", "==", "voting").get();
+              let changed = 0;
+              for (const t of trips.docs) {
+                for (const o of t.data().options || []) {
+                  if (!o.holdId) continue;
+                  const ref = db.collection("bookings").doc(o.holdId);
+                  const b = await ref.get();
+                  if (!b.exists || b.data().status !== "blocked") continue;
+                  await ref.update({ status: "tentative" });
+                  await db.collection("busy").doc(o.holdId).set({ start: b.data().start, end: b.data().end, tentative: true });
+                  changed++;
+                }
+              }
+              console.log(`::notice::Voting trips: ${trips.size}. Date holds switched to tentative: ${changed}.`);
+            })().catch((e) => { console.log(`::error::${e.message}`); process.exit(1); });
+          '
