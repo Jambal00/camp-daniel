@@ -1,0 +1,41 @@
+name: Send a test request email
+
+# Run by hand: Actions › "Send a test request email" › Run workflow.
+# Adds a pending request from a made-up guest (which emails the owners), waits a
+# minute for the email to go out, then deletes the request again.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --prefix functions --no-audit --no-fund
+      - name: Add, wait, remove
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          cd functions
+          node -e '
+            const admin = require("firebase-admin");
+            admin.initializeApp({ projectId: "camp-daniel" });
+            const db = admin.firestore();
+            (async () => {
+              const ref = await db.collection("bookings").add({
+                personId: "test-guest@example.com", start: "2027-03-12", end: "2027-03-14", partySize: 3,
+                names: "Test Guest (sample from Claude)", note: "This is a test of the new request email. It will disappear in a minute.",
+                status: "pending", welcomeNote: "", doorCode: "", createdAt: new Date().toISOString(),
+              });
+              console.log(`::notice::Created test request ${ref.id}; waiting 75s for the email`);
+              await new Promise((r) => setTimeout(r, 75000));
+              await ref.delete();
+              console.log(`::notice::Deleted test request ${ref.id}`);
+            })().catch((e) => { console.log(`::error::${e.message}`); process.exit(1); });
+          '
