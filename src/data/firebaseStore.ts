@@ -18,11 +18,23 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { fromISO } from '../lib/dates';
+import { shrinkPhoto } from '../lib/image';
 import { db } from './firebase';
 import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
 import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostLike, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
+
+/** photoThumbs/{id}: the small copy galleries show. */
+interface ThumbDoc {
+  kind?: 'guide' | 'post';
+  sectionId?: string;
+  postId?: string;
+  authorId?: string;
+  caption?: string;
+  order?: number;
+  thumb?: string;
+}
 
 /*
   Firestore layout (see firestore.rules for who can read what):
@@ -39,6 +51,7 @@ import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostLike, PostPh
   reminders/{id}        'Remind me later': a server function emails a calendar invite (and a cancel on delete)
   questions/{id}        a guest's question + the owners' answer (asker and owners read)
   postPhotos/{id}       one photo in a guest post {postId, authorId, data, order}
+  photoThumbs/{id}      ~480px gallery copy of photos/{id} or postPhotos/{id}, made by the server
   likes/{postId__email} one person's like on a guest post {postId, personId, name, createdAt}
   posts/{id}            guest photos & tips (author writes their own; everyone invited reads)
   photos/{id}           guide photos {sectionId, caption, data, order}
@@ -468,12 +481,27 @@ export class FirebaseStore implements DataStore {
 
   // ---------- photos ----------
 
+  /** Galleries list the small copies in photoThumbs; the full photo loads on tap (getFullPhoto). */
   watchPhotos(sectionId: string, onChange: (photos: GuidePhoto[]) => void) {
     return onSnapshot(
-      query(collection(db, 'photos'), where('sectionId', '==', sectionId)),
-      (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as GuidePhoto), id: d.id })).sort((a, b) => a.order - b.order)),
+      query(collection(db, 'photoThumbs'), where('sectionId', '==', sectionId)),
+      (snap) =>
+        onChange(
+          snap.docs
+            .map((d) => ({ d: d.data() as ThumbDoc, id: d.id }))
+            .filter(({ d }) => !!d.thumb)
+            .map(({ d, id }) => ({ id, sectionId: d.sectionId ?? sectionId, caption: d.caption ?? '', data: d.thumb!, order: d.order ?? 0, createdAt: '', thumbOf: 'photos' as const }))
+            .sort((a, b) => a.order - b.order),
+        ),
       (err) => console.warn('Camp Daniel photos', err),
     );
+  }
+
+  async getFullPhoto(col: 'photos' | 'postPhotos', id: string) {
+    const snap = await getDoc(doc(db, col, id));
+    const data = (snap.data() as { data?: string } | undefined)?.data;
+    if (!data) throw new Error('Photo not found');
+    return data;
   }
 
   async addPhoto(input: Omit<GuidePhoto, 'id' | 'createdAt'>) {
@@ -482,15 +510,29 @@ export class FirebaseStore implements DataStore {
     const { id: _id, ...stored } = p;
     void _id;
     await setDoc(ref, stored);
+    // The server makes the gallery copy too; doing it here as well means the owner sees it at once.
+    try {
+      const thumb = await shrinkPhoto(await (await fetch(input.data)).blob(), 480, 120_000);
+      await setDoc(doc(db, 'photoThumbs', ref.id), { kind: 'guide', sectionId: input.sectionId, caption: input.caption, order: input.order, thumb }, { merge: true });
+    } catch (e) {
+      console.warn('Camp Daniel thumbnail (the server will make it)', e);
+    }
     return p;
   }
 
-  async updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption' | 'order'>>) {
+  async updatePhoto(id: string, { thumb, ...patch }: Partial<Pick<GuidePhoto, 'data' | 'caption' | 'order'>> & { thumb?: string }) {
     await updateDoc(doc(db, 'photos', id), patch);
+    // Keep the gallery copy in step right away (the server also does this).
+    const t: Record<string, unknown> = {};
+    if (patch.caption !== undefined) t.caption = patch.caption;
+    if (patch.order !== undefined) t.order = patch.order;
+    if (thumb) t.thumb = thumb;
+    if (Object.keys(t).length) await setDoc(doc(db, 'photoThumbs', id), t, { merge: true }).catch((e) => console.warn('Camp Daniel thumbnail', e));
   }
 
   async deletePhoto(id: string) {
     await deleteDoc(doc(db, 'photos', id));
+    await deleteDoc(doc(db, 'photoThumbs', id)).catch(() => undefined);
   }
 
   watchPosts(onChange: (posts: GuestPost[]) => void, since?: string) {
@@ -541,8 +583,15 @@ export class FirebaseStore implements DataStore {
 
   watchPostPhotos(postId: string, onChange: (photos: PostPhoto[]) => void) {
     return onSnapshot(
-      query(collection(db, 'postPhotos'), where('postId', '==', postId)),
-      (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as PostPhoto), id: d.id })).sort((a, b) => a.order - b.order)),
+      query(collection(db, 'photoThumbs'), where('postId', '==', postId)),
+      (snap) =>
+        onChange(
+          snap.docs
+            .map((d) => ({ d: d.data() as ThumbDoc, id: d.id }))
+            .filter(({ d }) => !!d.thumb)
+            .map(({ d, id }) => ({ id, postId, authorId: d.authorId ?? '', data: d.thumb!, order: d.order ?? 0, thumbOf: 'postPhotos' as const }))
+            .sort((a, b) => a.order - b.order),
+        ),
       (err) => console.warn('Camp Daniel post photos', err),
     );
   }

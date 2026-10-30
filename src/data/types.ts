@@ -99,9 +99,12 @@ export interface GuidePhoto {
   id: string;
   sectionId: string;
   caption: string;
+  /** Full photo (local demo) or, when `thumbOf` is set, the small gallery copy. */
   data: string;
   order: number;
   createdAt: string;
+  /** Set when `data` is a thumbnail; the full photo lives in this collection under the same id. */
+  thumbOf?: 'photos' | 'postPhotos';
 }
 
 /** When someone first and last opened the app (signed in). */
@@ -135,6 +138,7 @@ export interface PostPhoto {
   authorId: string;
   data: string;
   order: number;
+  thumbOf?: 'photos' | 'postPhotos';
 }
 
 /** One person's like on a guest post. Id is `${postId}__${personId}`. */

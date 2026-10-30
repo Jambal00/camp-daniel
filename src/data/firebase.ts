@@ -9,7 +9,7 @@ import {
   signInWithPopup,
   signOut as fbSignOut,
 } from 'firebase/auth';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 // Firebase web config. These values identify the project and are meant to be
 // public; access is controlled by sign-in and the Firestore security rules.
@@ -26,7 +26,13 @@ export const app = initializeApp(config);
 export const auth = getAuth(app);
 // Long polling uses ordinary web requests instead of a streaming connection, which
 // some networks (office Wi-Fi, filters, VPNs) and iPhone home-screen apps quietly block.
-export const db = initializeFirestore(app, { ignoreUndefinedProperties: true, experimentalForceLongPolling: true });
+// The local cache keeps what's been loaded (photos included) on the phone, so the app
+// opens with it instantly and only fetches what changed.
+export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
+  experimentalForceLongPolling: true,
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager(), cacheSizeBytes: 150 * 1024 * 1024 }),
+});
 
 const EMAIL_KEY = 'camp-daniel:signin-email';
 

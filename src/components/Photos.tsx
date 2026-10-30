@@ -11,6 +11,34 @@ export function usePhotos(sectionId: string): GuidePhoto[] | null {
   return photos;
 }
 
+/** Full-size photos already fetched this session, by id. */
+const fullCache = new Map<string, Promise<string>>();
+
+/** The full photo behind a thumbnail (fetched once); the photo itself when it isn't a thumbnail. */
+export function fullPhoto(p: Pick<GuidePhoto, 'id' | 'data' | 'thumbOf'>): Promise<string> {
+  if (!p.thumbOf) return Promise.resolve(p.data);
+  let hit = fullCache.get(p.id);
+  if (!hit) {
+    hit = store.getFullPhoto(p.thumbOf, p.id);
+    hit.catch(() => fullCache.delete(p.id));
+    fullCache.set(p.id, hit);
+  }
+  return hit;
+}
+
+function useFullPhoto(p: GuidePhoto | undefined): string | null {
+  const [src, setSrc] = useState<{ id: string; data: string } | null>(null);
+  useEffect(() => {
+    if (!p) return;
+    let live = true;
+    fullPhoto(p).then((data) => live && setSrc({ id: p.id, data }), () => undefined);
+    return () => {
+      live = false;
+    };
+  }, [p]);
+  return p && src?.id === p.id ? src.data : null;
+}
+
 /** Full-screen view; swipe or use the arrows to move through the set. Tap the backdrop or Close to dismiss. */
 export function Viewer({ photos, start, onClose }: { photos: GuidePhoto[]; start: number; onClose: () => void }) {
   const [i, setI] = useState(start);
@@ -28,6 +56,13 @@ export function Viewer({ photos, start, onClose }: { photos: GuidePhoto[]; start
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose, n]);
   const photo = photos[Math.min(i, n - 1)];
+  const full = useFullPhoto(photo);
+  // Fetch the neighbors too, so swiping is quick.
+  useEffect(() => {
+    if (n < 2) return;
+    void fullPhoto(photos[(i + 1) % n]).catch(() => undefined);
+    void fullPhoto(photos[(i - 1 + n) % n]).catch(() => undefined);
+  }, [i, n, photos]);
   if (!photo) return null;
   const stop = (e: MouseEvent) => e.stopPropagation();
   return (
@@ -45,7 +80,8 @@ export function Viewer({ photos, start, onClose }: { photos: GuidePhoto[]; start
         if (Math.abs(dx) > 40) step(dx < 0 ? 1 : -1);
       }}
     >
-      <img src={photo.data} alt={photo.caption} onClick={stop} />
+      <img src={full ?? photo.data} alt={photo.caption} onClick={stop} className={full ? undefined : 'loading-full'} />
+      {!full && <div className="viewer-loading" aria-live="polite">Loading full photo…</div>}
       {photo.caption && <div className="viewer-cap">{photo.caption}</div>}
       <div className="viewer-nav" onClick={stop}>
         {n > 1 && <button className="viewer-arrow" onClick={() => step(-1)} aria-label="Previous photo">‹</button>}
@@ -58,10 +94,10 @@ export function Viewer({ photos, start, onClose }: { photos: GuidePhoto[]; start
 }
 
 /** Guests: the section's photos, tap to enlarge. Renders nothing (or `empty`) when there are none. */
-export function PhotoGallery({ sectionId, empty = null }: { sectionId: string; empty?: ReactNode }) {
+export function PhotoGallery({ sectionId, empty = null, showLoading = false }: { sectionId: string; empty?: ReactNode; showLoading?: boolean }) {
   const photos = usePhotos(sectionId);
   const [open, setOpen] = useState<number | null>(null);
-  if (!photos) return null;
+  if (!photos) return showLoading ? <div className="muted" role="status" style={{ padding: '24px 0', textAlign: 'center' }}>Loading photos…</div> : null;
   if (photos.length === 0) return <>{empty}</>;
   return (
     <section className="photos" aria-label="Photos">
@@ -107,7 +143,13 @@ export function PhotoManager({ sectionId, addFirst = false }: { sectionId: strin
   const turn = async (p: GuidePhoto) => {
     setTurning(p.id);
     try {
-      await store.updatePhoto(p.id, { data: await rotatePhoto(p.data) });
+      if (p.thumbOf) {
+        const [data, thumb] = await Promise.all([fullPhoto(p).then(rotatePhoto), rotatePhoto(p.data)]);
+        fullCache.set(p.id, Promise.resolve(data));
+        await store.updatePhoto(p.id, { data, thumb });
+      } else {
+        await store.updatePhoto(p.id, { data: await rotatePhoto(p.data) });
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Couldn’t turn the photo. Try again.');
     } finally {

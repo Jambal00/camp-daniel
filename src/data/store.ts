@@ -34,7 +34,10 @@ export interface DataStore {
   /** Photos for one guide section, kept live; returns a stop function. Loaded per section to keep the app light. */
   watchPhotos(sectionId: string, onChange: (photos: GuidePhoto[]) => void): () => void;
   addPhoto(input: Omit<GuidePhoto, 'id' | 'createdAt'>): Promise<GuidePhoto>;
-  updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption' | 'order'>>): Promise<void>;
+  /** `thumb` (owners) updates the gallery copy right away, e.g. after a rotate. */
+  updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption' | 'order'>> & { thumb?: string }): Promise<void>;
+  /** The full-size photo behind a gallery thumbnail. */
+  getFullPhoto(col: 'photos' | 'postPhotos', id: string): Promise<string>;
   deletePhoto(id: string): Promise<void>;
 
   /** Guest photos & tips, newest first (most recent 60, or only those after `since`). Returns a stop function. */

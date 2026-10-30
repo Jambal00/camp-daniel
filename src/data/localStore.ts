@@ -167,9 +167,16 @@ export class LocalStore implements DataStore {
     return p;
   }
 
-  async updatePhoto(id: string, patch: Partial<Pick<GuidePhoto, 'data' | 'caption' | 'order'>>) {
+  async updatePhoto(id: string, { thumb: _thumb, ...patch }: Partial<Pick<GuidePhoto, 'data' | 'caption' | 'order'>> & { thumb?: string }) {
+    void _thumb;
     this.photos = this.photos.map((p) => (p.id === id ? { ...p, ...patch } : p));
     this.savePhotos();
+  }
+
+  async getFullPhoto(col: 'photos' | 'postPhotos', id: string) {
+    const hit = col === 'photos' ? this.photos.find((p) => p.id === id) : this.postPhotos.find((p) => p.id === id);
+    if (!hit) throw new Error('Photo not found');
+    return hit.data;
   }
 
   async deletePhoto(id: string) {

@@ -36,6 +36,7 @@ export const store: DataStore = {
   addPhoto: (i) => backend().addPhoto(i),
   updatePhoto: (id, p) => backend().updatePhoto(id, p),
   deletePhoto: (id) => backend().deletePhoto(id),
+  getFullPhoto: (col, id) => backend().getFullPhoto(col, id),
   watchPosts: (cb, since) => backend().watchPosts(cb, since),
   addPost: (i, ph) => backend().addPost(i, ph),
   watchPostPhotos: (id, cb) => backend().watchPostPhotos(id, cb),

@@ -14,7 +14,7 @@ export function Album() {
         <h1 className="title">Photo album</h1>
         <p className="muted" style={{ margin: 0 }}>The cabin, the lake and the crew. Tap a photo to see it bigger, then swipe through.</p>
       </header>
-      <PhotoGallery sectionId={ALBUM} empty={<div className="card" style={{ textAlign: 'center' }}><div className="strong">Photos coming soon</div><div className="small muted">Pete &amp; Trisha are picking their favorites.</div></div>} />
+      <PhotoGallery sectionId={ALBUM} showLoading empty={<div className="card" style={{ textAlign: 'center' }}><div className="strong">Photos coming soon</div><div className="small muted">Pete &amp; Trisha are picking their favorites.</div></div>} />
     </main>
   );
 }

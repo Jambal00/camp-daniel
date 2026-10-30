@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { LinkedText } from '../../components/LinkedText';
 import { Viewer } from '../../components/Photos';
 import { toast } from '../../components/Toast';
@@ -210,6 +210,13 @@ function Post({ p, canDelete, likes }: { p: GuestPost; canDelete: boolean; likes
   const [open, setOpen] = useState<number | null>(null);
   const extra = usePostPhotos(p.photoCount ? p.id : null);
   const all = [...(p.photo ? [p.photo] : []), ...extra.map((x) => x.data)];
+  const viewerPhotos = useMemo(
+    () => [
+      ...(p.photo ? [{ id: `${p.id}-0`, data: p.photo }] : []),
+      ...extra.map((x) => ({ id: x.id, data: x.data, thumbOf: x.thumbOf })),
+    ].map((x, i) => ({ ...x, sectionId: 'post', caption: i === 0 ? p.text : '', order: i + 1, createdAt: p.createdAt })),
+    [p.photo, p.id, p.text, p.createdAt, extra],
+  );
   const remove = async () => {
     if (previewing) {
       toast('Guest preview: nothing was deleted.');
@@ -296,7 +303,7 @@ function Post({ p, canDelete, likes }: { p: GuestPost; canDelete: boolean; likes
         </div>
       )}
       {open !== null && all[open] && (
-        <Viewer photos={all.map((data, i) => ({ id: `${p.id}-${i}`, sectionId: 'post', caption: i === 0 ? p.text : '', data, order: i + 1, createdAt: p.createdAt }))} start={open} onClose={() => setOpen(null)} />
+        <Viewer photos={viewerPhotos} start={open} onClose={() => setOpen(null)} />
       )}
     </article>
   );
