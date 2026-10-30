@@ -61,6 +61,14 @@ jobs:
           set -o pipefail
           if ! npx --yes firebase-tools@14 deploy --only functions --project camp-daniel --force --non-interactive 2>&1 | tee "$RUNNER_TEMP/deploy.log"; then
             # Surface the reason as annotations (readable without the raw log).
-            grep -iE 'error|denied|permission|billing|enable|api |not been used|failed' "$RUNNER_TEMP/deploy.log" | grep -v '^\s*$' | tail -12 | sed 's/^/::error::/'
+            sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/deploy.log" > "$RUNNER_TEMP/clean.log"
+            grep -iE 'error|denied|permission|billing|not been used|failed|could not|unable' "$RUNNER_TEMP/clean.log" | grep -vE 'ensuring required API|is enabled' | grep -v '^\s*$' | tail -9 | sed 's/^/::error::/'
             exit 1
           fi
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log
+          path: ${{ runner.temp }}/clean.log
+          if-no-files-found: ignore
