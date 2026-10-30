@@ -1,4 +1,5 @@
 import { Icon } from '../../components/Icon';
+import { NotificationsPrompt } from '../../components/Notifications';
 import { fmtDay, fmtRange } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -41,6 +42,8 @@ export function Sent({ id }: { id: string }) {
           </div>
         </div>
       </div>
+
+      <NotificationsPrompt title="Want to know the moment they say yes?" sub="Get a notification when your stay is approved, and when your door code is ready." />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 'auto' }}>
         <a className="btn block" href={href('/guide')}>Peek at the cabin guide</a>

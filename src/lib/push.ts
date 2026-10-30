@@ -1,7 +1,8 @@
 // Phone notifications for owners (standard Web Push).
 // iPhone only allows them from the app added to the Home Screen (iOS 16.4+).
 
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { MODE } from '../data';
 import { db } from '../data/firebase';
 
 export type PushSupport = 'ok' | 'needs-home-screen' | 'unsupported';
@@ -81,4 +82,54 @@ export function listenForNotificationTaps() {
   };
   navigator.serviceWorker.addEventListener('message', on);
   return () => navigator.serviceWorker.removeEventListener('message', on);
+}
+
+// ---------- Which notifications each person wants (notifyPrefs/{email}) ----------
+// Anything not switched off is on. Choices follow the person, not the phone.
+
+
+export type NotifyKey = 'request' | 'requestEmail' | 'question' | 'cancel' | 'doorCode' | 'headingOut' | 'approved' | 'answer' | 'codeReady' | 'tripSoon';
+export type NotifyPrefs = Partial<Record<NotifyKey, boolean>>;
+
+const LOCAL_PREFS = 'camp-daniel:notify-prefs';
+const localListeners = new Set<() => void>();
+
+function readLocal(personId: string): NotifyPrefs {
+  try {
+    return (JSON.parse(localStorage.getItem(LOCAL_PREFS) || '{}') as Record<string, NotifyPrefs>)[personId] ?? {};
+  } catch {
+    return {};
+  }
+}
+
+export function watchNotifyPrefs(personId: string, cb: (p: NotifyPrefs) => void): () => void {
+  if (MODE === 'local') {
+    const send = () => cb(readLocal(personId));
+    send();
+    localListeners.add(send);
+    return () => {
+      localListeners.delete(send);
+    };
+  }
+  return onSnapshot(
+    doc(db, 'notifyPrefs', personId),
+    (s) => cb((s.data() as NotifyPrefs | undefined) ?? {}),
+    () => cb({}),
+  );
+}
+
+export async function setNotifyPref(personId: string, key: NotifyKey, on: boolean) {
+  if (MODE === 'local') {
+    let all: Record<string, NotifyPrefs> = {};
+    try {
+      all = JSON.parse(localStorage.getItem(LOCAL_PREFS) || '{}');
+    } catch {
+      /* start fresh */
+    }
+    all[personId] = { ...(all[personId] ?? {}), [key]: on };
+    localStorage.setItem(LOCAL_PREFS, JSON.stringify(all));
+    localListeners.forEach((f) => f());
+    return;
+  }
+  await setDoc(doc(db, 'notifyPrefs', personId), { [key]: on }, { merge: true });
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import type { GuestQuestion } from '../../data/types';
+import { useRoute } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
 const SEEN_KEY = 'camp-daniel:answers-seen';
@@ -106,6 +107,14 @@ export function AskButton() {
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(seenAt);
   const fresh = qs.filter((q) => q.answeredAt && q.answeredAt > seen).length;
+
+  // A notification about an answer opens the app at #/?ask=1: show the answers.
+  const route = useRoute();
+  const askParam = route.query.get('ask') === '1';
+  useEffect(() => {
+    if (askParam) show();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askParam]);
 
   const show = () => {
     setOpen(true);

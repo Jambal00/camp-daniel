@@ -167,7 +167,8 @@ exports.cancelReminderInvite = functions.firestore.document('reminders/{id}').on
 
 // ---------- New stay requests: email the owners ----------
 const { buildRequestEmail, fmtShort } = require('./requests');
-const { pushToPeople, sendTo } = require('./push');
+const { sendTo } = require('./push');
+const { chicagoDay, wants, notify, once, ownerIds, nameOf, first } = require('./notify');
 
 async function ownerEmails() {
   const owners = await admin.firestore().collection('people').where('tier', '==', 'owner').get();
@@ -201,7 +202,7 @@ exports.notifyNewRequest = functions.firestore.document('bookings/{id}').onCreat
     const who = (person && person.name) || b.names || 'Someone';
     const n = Math.round((new Date(`${b.end}T12:00:00Z`) - new Date(`${b.start}T12:00:00Z`)) / 86400000);
     try {
-      const r = await pushToPeople(db, owners, {
+      const r = await notify(db, owners, 'request', {
         title: b.replaces ? `Change of dates: ${who}` : `New request: ${who}`,
         body: `${fmtShort(b.start, b.end)} · ${n} night${n === 1 ? '' : 's'} · party of ${b.partySize || '?'}${b.note ? ` · “${String(b.note).slice(0, 80)}”` : ''}`,
         url: `${appUrl()}#/owner/approve/${id}`,
@@ -211,10 +212,170 @@ exports.notifyNewRequest = functions.firestore.document('bookings/{id}').onCreat
     } catch (e) {
       console.error('Request push failed', id, e);
     }
-    await sendMail({ to: owners, replyTo: guestEmail || undefined, ...mail });
-    console.log('Request email sent', id, 'to', owners.length, 'owners');
+    const emailTo = [];
+    for (const o of owners) if (await wants(db, o, 'requestEmail')) emailTo.push(o);
+    if (emailTo.length) await sendMail({ to: emailTo, replyTo: guestEmail || undefined, ...mail });
+    console.log('Request email sent', id, 'to', emailTo.length, 'owners');
   } catch (e) {
     console.error('Request email failed', id, e);
+  }
+});
+
+// ---------- Other notifications ----------
+const APP = (hash) => `${appUrl()}#${hash}`;
+
+// Owners: a guest asked a question.
+exports.notifyQuestion = functions.firestore.document('questions/{id}').onCreate(async (snap, ctx) => {
+  const q = snap.data() || {};
+  const db = admin.firestore();
+  try {
+    const owners = await ownerIds(db);
+    if (owners.includes(String(q.askerId).toLowerCase())) return;
+    await notify(db, owners, 'question', {
+      title: `Question from ${first(q.askerName || 'a guest')}`,
+      body: String(q.text || '').slice(0, 160),
+      url: APP('/owner/questions'),
+      tag: `question-${ctx.params.id}`,
+    });
+  } catch (e) {
+    console.error('Question push failed', ctx.params.id, e);
+  }
+});
+
+// Guests: Pete & Trisha answered their question.
+exports.notifyAnswer = functions.firestore.document('questions/{id}').onUpdate(async (change, ctx) => {
+  const b = change.before.data() || {};
+  const a = change.after.data() || {};
+  if (!a.answer || b.answer) return;
+  const db = admin.firestore();
+  try {
+    await once(db, `answer-${ctx.params.id}`, () =>
+      notify(db, [a.askerId], 'answer', {
+        title: 'Pete & Trisha answered your question',
+        body: String(a.answer).slice(0, 160),
+        url: APP('/?ask=1'),
+        tag: `answer-${ctx.params.id}`,
+      }),
+    );
+  } catch (e) {
+    console.error('Answer push failed', ctx.params.id, e);
+  }
+});
+
+// Bookings changing: approved (guest), cancelled (owners), heading-out note (owners).
+exports.notifyBookingChange = functions.firestore.document('bookings/{id}').onUpdate(async (change, ctx) => {
+  const b = change.before.data() || {};
+  const a = change.after.data() || {};
+  const id = ctx.params.id;
+  const db = admin.firestore();
+  try {
+    const owners = await ownerIds(db);
+    const isGuest = !owners.includes(String(a.personId).toLowerCase());
+    if (b.status === 'pending' && a.status === 'approved' && isGuest) {
+      await once(db, `approved-${id}`, () =>
+        notify(db, [a.personId], 'approved', {
+          title: a.replaces ? 'Your new dates are set' : 'You’re all set for Camp Daniel!',
+          body: `${fmtShort(a.start, a.end)} is approved. Tap for your welcome note and trip details.`,
+          url: APP('/trip'),
+          tag: `approved-${id}`,
+        }),
+      );
+    }
+    // A guest cancelling (not the old stay an owner closes when approving a change of dates).
+    const replacedByChange = a.status === 'cancelled' && !(await db.collection('bookings').where('replaces', '==', id).where('status', '==', 'approved').limit(1).get()).empty;
+    if (b.status !== 'cancelled' && a.status === 'cancelled' && isGuest && b.status === 'approved' && !replacedByChange) {
+      const who = await nameOf(db, a.personId, a.names);
+      await once(db, `cancelled-${id}`, () =>
+        notify(db, owners, 'cancel', {
+          title: `${first(who)} cancelled their stay`,
+          body: `${fmtShort(a.start, a.end)} is open again.`,
+          url: APP('/owner/calendar'),
+          tag: `cancelled-${id}`,
+        }),
+      );
+    }
+    if (a.departureNote && a.departureNote !== b.departureNote && isGuest) {
+      const who = await nameOf(db, a.personId, a.names);
+      await notify(db, owners, 'headingOut', {
+        title: `${first(who)} is heading out`,
+        body: String(a.departureNote).slice(0, 160),
+        url: APP('/owner'),
+        tag: `heading-out-${id}`,
+      });
+    }
+  } catch (e) {
+    console.error('Booking push failed', id, e);
+  }
+});
+
+/** Approved guest stays starting on `day`, with their door code (if any). */
+async function staysStarting(db, day) {
+  const owners = await ownerIds(db);
+  const snap = await db.collection('bookings').where('start', '==', day).get();
+  const out = [];
+  for (const d of snap.docs) {
+    const b = d.data();
+    if (b.status !== 'approved' || owners.includes(String(b.personId).toLowerCase())) continue;
+    const acc = await db.collection('access').doc(d.id).get();
+    out.push({ id: d.id, ...b, doorCode: (acc.exists && acc.data().doorCode) || '' });
+  }
+  return { owners, stays: out };
+}
+
+// Every morning at 9: trip in 3 days (guest), and any stay in the next 3 days still missing a door code (owners).
+exports.morningNudges = functions.pubsub.schedule('0 9 * * *').timeZone(TZ).onRun(async () => {
+  const db = admin.firestore();
+  for (const offset of [0, 1, 2, 3]) {
+    const day = chicagoDay(offset);
+    const { owners, stays } = await staysStarting(db, day);
+    for (const s of stays) {
+      try {
+        if (offset === 3) {
+          await once(db, `trip-soon-${s.id}`, () =>
+            notify(db, [s.personId], 'tripSoon', {
+              title: 'Camp Daniel in 3 days!',
+              body: `${fmtShort(s.start, s.end)}. Tap for directions, the guide and what to bring.`,
+              url: APP('/trip'),
+              tag: `trip-soon-${s.id}`,
+            }),
+          );
+        }
+        if (!s.doorCode) {
+          const who = await nameOf(db, s.personId, s.names);
+          await once(db, `door-code-${s.id}-${day === chicagoDay(0) ? 'today' : 'soon'}`, () =>
+            notify(db, owners, 'doorCode', {
+              title: `Door code needed for ${first(who)}`,
+              body: `They arrive ${offset === 0 ? 'today' : offset === 1 ? 'tomorrow' : `in ${offset} days`} (${fmtShort(s.start, s.end)}) and there’s no code yet.`,
+              url: APP(`/owner/approve/${s.id}`),
+              tag: `door-code-${s.id}`,
+            }),
+          );
+        }
+      } catch (e) {
+        console.error('Morning nudge failed', s.id, e);
+      }
+    }
+  }
+});
+
+// Arrival day at noon, when the code unlocks in the app (guest).
+exports.noonCodeReady = functions.pubsub.schedule('0 12 * * *').timeZone(TZ).onRun(async () => {
+  const db = admin.firestore();
+  const { stays } = await staysStarting(db, chicagoDay(0));
+  for (const s of stays) {
+    if (!s.doorCode) continue;
+    try {
+      await once(db, `code-ready-${s.id}`, () =>
+        notify(db, [s.personId], 'codeReady', {
+          title: 'Your door code is ready',
+          body: 'Welcome to Camp Daniel! Tap for the door code and Wi-Fi.',
+          url: APP('/trip'),
+          tag: `code-ready-${s.id}`,
+        }),
+      );
+    } catch (e) {
+      console.error('Code-ready push failed', s.id, e);
+    }
   }
 });
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { NotificationsPrompt } from '../../components/Notifications';
 import type { Booking } from '../../data/types';
 import { Empty, Stepper, StayTimeline } from '../../components/bits';
 import { Icon } from '../../components/Icon';
@@ -216,6 +217,8 @@ export function Trip() {
       ) : (
         <StayTimeline booking={trip} />
       )}
+
+      {phase !== 'staying' && <NotificationsPrompt />}
 
       {trip.welcomeNote && (
         <div className="card" style={{ gap: 4 }}>
