@@ -8,6 +8,8 @@
 //   RESEND_API_KEY, MAIL_FROM ("Camp Daniel <camp@camp.productdna.net>"), APP_URL,
 //   REPLY_TO (optional; otherwise the first owner in People, alphabetically)
 //
+// Also: emails the owners when a guest requests dates, and makes photo thumbnails.
+//
 // MAIL_FROM can send but has no inbox, so the invite's organizer and the email's
 // reply-to are a real owner's address. Invites also arrive already accepted, so
 // calendars don't ask the guest to RSVP.
@@ -88,6 +90,7 @@ function prettyDay(day) {
 }
 
 async function sendMail({ to, subject, text, html, ics, method, replyTo }) {
+  const recipients = Array.isArray(to) ? to : [to];
   const key = process.env.RESEND_API_KEY;
   if (!key || !process.env.MAIL_FROM) throw new Error('Email is not set up yet (RESEND_API_KEY / MAIL_FROM).');
   const res = await fetch('https://api.resend.com/emails', {
@@ -95,12 +98,12 @@ async function sendMail({ to, subject, text, html, ics, method, replyTo }) {
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: fromAddress().header,
-      to: [to],
+      to: recipients,
       ...(replyTo ? { reply_to: replyTo } : {}),
       subject,
       text,
       html,
-      attachments: [{ filename: 'camp-daniel-reminder.ics', content: Buffer.from(ics).toString('base64'), content_type: `text/calendar; method=${method}` }],
+      ...(ics ? { attachments: [{ filename: 'camp-daniel-reminder.ics', content: Buffer.from(ics).toString('base64'), content_type: `text/calendar; method=${method}` }] } : {}),
     }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
@@ -159,6 +162,44 @@ exports.cancelReminderInvite = functions.firestore.document('reminders/{id}').on
     });
   } catch (e) {
     console.error('Reminder cancel failed', ctx.params.id, e);
+  }
+});
+
+// ---------- New stay requests: email the owners ----------
+const { buildRequestEmail } = require('./requests');
+
+async function ownerEmails() {
+  const owners = await admin.firestore().collection('people').where('tier', '==', 'owner').get();
+  return owners.docs.map((d) => d.id).filter((id) => id.includes('@')).sort();
+}
+
+exports.notifyNewRequest = functions.firestore.document('bookings/{id}').onCreate(async (snap, ctx) => {
+  const b = snap.data() || {};
+  const id = ctx.params.id;
+  if (b.status !== 'pending' || b.bookedByOwner) return;
+  try {
+    const db = admin.firestore();
+    const owners = await ownerEmails();
+    if (!owners.length || owners.includes(String(b.personId).toLowerCase())) return;
+    const [personSnap, replacedSnap, busySnap, pendingSnap] = await Promise.all([
+      db.collection('people').doc(b.personId).get(),
+      b.replaces ? db.collection('bookings').doc(b.replaces).get() : Promise.resolve(null),
+      db.collection('busy').get(),
+      db.collection('bookings').where('status', '==', 'pending').get(),
+    ]);
+    const person = personSnap.exists ? personSnap.data() : null;
+    const mail = buildRequestEmail(id, b, {
+      person,
+      replaced: replacedSnap && replacedSnap.exists ? replacedSnap.data() : null,
+      busy: busySnap.docs.map((d) => ({ ...d.data(), id: d.id })),
+      pending: pendingSnap.docs.map((d) => ({ ...d.data(), id: d.id })),
+      appUrl: appUrl(),
+    });
+    const guestEmail = (person && person.email) || (String(b.personId).includes('@') ? b.personId : '');
+    await sendMail({ to: owners, replyTo: guestEmail || undefined, ...mail });
+    console.log('Request email sent', id, 'to', owners.length, 'owners');
+  } catch (e) {
+    console.error('Request email failed', id, e);
   }
 });
 
