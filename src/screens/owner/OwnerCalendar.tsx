@@ -30,10 +30,10 @@ export function OwnerCalendar() {
     const b = bookingOn(d, live);
     if (b) {
       const p = personById(snap.people, b.personId);
-      const tier = b.status === 'blocked' ? 'owner' : p?.tier ?? 'friends';
+      const tier = b.status === 'blocked' || b.status === 'tentative' ? 'owner' : p?.tier ?? 'friends';
       return {
-        className: `tier t-${tier}${b.status === 'pending' ? ' pending' : ''}`,
-        tag: b.status === 'blocked' ? 'US' : initials(p?.shortName ?? '?'),
+        className: `tier t-${tier}${b.status === 'pending' ? ' pending' : ''}${b.status === 'tentative' ? ' tentative' : ''}`,
+        tag: b.status === 'blocked' ? 'US' : b.status === 'tentative' ? 'VOTE' : initials(p?.shortName ?? '?'),
         state: `${b.status} by ${p?.shortName}`,
       };
     }
@@ -97,12 +97,30 @@ export function OwnerCalendar() {
             <span className="t-kids"><i className="sw" style={{ background: 'var(--tc)' }} />Kids</span>
             <span className="t-friends"><i className="sw" style={{ background: 'var(--tc)' }} />Friends &amp; family</span>
             <span><i className="sw" style={{ border: '2px dashed var(--muted)' }} />Pending</span>
+            {live.some((b) => b.status === 'tentative') && <span><i className="sw tentative-sw" />Group trip vote</span>}
           </div>
         </section>
 
         {!sel.start && !fb && <p className="small muted" style={{ margin: 0, textAlign: 'center' }}>Tap open days to block them or book for someone. Tap a stay to see details.</p>}
 
-        {fb && fp && (
+        {fb && fb.status === 'tentative' && (
+          <div className="card">
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div className="strong" style={{ fontSize: 17 }}>{fb.names}</div>
+                <div className="small muted">{fmtRangeLong(fb.start, fb.end)}</div>
+              </div>
+              <span className="chip orange">Tentative</span>
+            </div>
+            <div className="small muted">A date choice in a group trip vote. Guests see it as tentative and can still ask for it.</div>
+            <div className="grid-2">
+              {fb.groupTripId ? <a className="btn small" href={href(`/owner/group/${fb.groupTripId}`)}>Open the vote</a> : <span />}
+              <button className="btn outline small" onClick={() => setFocus(null)}>Close</button>
+            </div>
+          </div>
+        )}
+
+        {fb && fp && fb.status !== 'tentative' && (
           <div className="card">
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>

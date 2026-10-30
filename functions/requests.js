@@ -34,10 +34,12 @@ function buildRequestEmail(id, b, ctx) {
   const isChange = !!b.replaces;
   const link = `${ctx.appUrl}#/owner/approve/${id}`;
 
-  const clashBusy = ctx.busy.filter((x) => x.id !== b.replaces && overlaps(x, b));
+  const clashBusy = ctx.busy.filter((x) => !x.tentative && x.id !== b.replaces && overlaps(x, b));
+  const clashVote = ctx.busy.filter((x) => x.tentative && overlaps(x, b));
   const clashPending = ctx.pending.filter((x) => x.id !== id && overlaps(x, b));
   const warnings = [];
   if (clashBusy.length) warnings.push(`Overlaps a stay that's already approved or blocked (${clashBusy.map((x) => fmtShort(x.start, x.end)).join(', ')}).`);
+  if (clashVote.length) warnings.push(`Some of these nights are a choice in a group trip vote (${clashVote.map((x) => fmtShort(x.start, x.end)).join(', ')}). Approving drops that choice from the vote.`);
   if (clashPending.length) warnings.push(`${clashPending.length === 1 ? 'Another request wants' : `${clashPending.length} other requests want`} some of the same nights. The app sorts them by dibs.`);
 
   const subject = isChange

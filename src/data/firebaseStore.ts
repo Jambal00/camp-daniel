@@ -91,7 +91,7 @@ type Parts = {
   crewBookings: Booking[];
   groupTrips: GroupTrip[];
   groupVotes: GroupVote[];
-  busy: { id: string; start: string; end: string }[];
+  busy: { id: string; start: string; end: string; tentative?: boolean }[];
   access: Record<string, { doorCode: string; wifiNetwork: string; wifiPassword: string }>;
   guide: GuideSection[];
   templates: MessageTemplate[];
@@ -297,7 +297,7 @@ export class FirebaseStore implements DataStore {
       );
       onList<GroupTrip>(query(collection(db, 'groupTrips'), where('inviteeIds', 'array-contains', this.email)), (v) => (this.parts.groupTrips = v));
       onList<GroupVote>(query(collection(db, 'groupVotes'), where('inviteeIds', 'array-contains', this.email)), (v) => (this.parts.groupVotes = v));
-      onList<{ id: string; start: string; end: string }>(collection(db, 'busy'), (v) => (this.parts.busy = v));
+      onList<{ id: string; start: string; end: string; tentative?: boolean }>(collection(db, 'busy'), (v) => (this.parts.busy = v));
       // Door codes unlock at noon on arrival day; check again every few minutes.
       this.accessTimer = window.setInterval(() => void this.refreshAccess(), 5 * 60 * 1000);
     }
@@ -335,7 +335,7 @@ export class FirebaseStore implements DataStore {
     const mine = new Set(own.map((b) => b.id));
     const others: Booking[] = p.busy
       .filter((x) => !mine.has(x.id))
-      .map((x) => ({ id: x.id, personId: OTHER, start: x.start, end: x.end, partySize: 0, names: '', note: '', status: 'approved', welcomeNote: '', doorCode: '', createdAt: '' }));
+      .map((x) => ({ id: x.id, personId: OTHER, start: x.start, end: x.end, partySize: 0, names: '', note: '', status: x.tentative ? 'tentative' : 'approved', welcomeNote: '', doorCode: '', createdAt: '' }));
     const current = own.find((b) => p.access[b.id]);
     const a = current ? p.access[current.id] : undefined;
     const people = [...p.people, ...(p.self && !p.people.some((x) => x.id === p.self!.id) ? [p.self] : [])];
@@ -372,6 +372,7 @@ export class FirebaseStore implements DataStore {
   private async syncSideDocs(b: Booking) {
     const holds = b.status === 'approved' || b.status === 'blocked';
     if (holds) await setDoc(doc(db, 'busy', b.id), { start: b.start, end: b.end });
+    else if (b.status === 'tentative') await setDoc(doc(db, 'busy', b.id), { start: b.start, end: b.end, tentative: true });
     else await deleteDoc(doc(db, 'busy', b.id)).catch(() => undefined);
 
     if (b.status === 'approved') {
@@ -411,7 +412,7 @@ export class FirebaseStore implements DataStore {
       holds.push(
         await this.createBooking({
           personId: input.hostId, start: o.start, end: o.end, partySize: input.inviteeIds.length + 1, names: `Held for ${input.title}`, note: '',
-          status: 'blocked', welcomeNote: '', doorCode: '', decidedAt: now, bookedByOwner: true, groupTripId: ref.id,
+          status: 'tentative', welcomeNote: '', doorCode: '', decidedAt: now, bookedByOwner: true, groupTripId: ref.id,
         }),
       );
     }

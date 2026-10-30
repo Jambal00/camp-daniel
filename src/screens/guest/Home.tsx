@@ -20,6 +20,7 @@ export function Home() {
   const trip = nextTripFor(me.id, snap.bookings);
   const mine = snap.bookings.filter((b) => isOnStay(b, me.id) && (b.status === 'pending' || b.status === 'approved'));
   const others = holding(snap.bookings).filter((b) => b.personId !== me.id);
+  const tentative = snap.bookings.filter((b) => b.status === 'tentative' && !isOnStay(b, me.id));
 
   const pastStays = mine.filter((b) => b.status === 'approved' && b.start < t);
   const look = (d: ISODate): DayLook => {
@@ -34,6 +35,7 @@ export function Home() {
     if (m && m.id === ignoreId) return { className: 'mine changing', state: 'the dates you are changing' };
     if (m) return { className: `mine ${m.status}`, state: m.status === 'pending' ? 'your request' : 'your stay' };
     if (others.some((b) => onDayOf(d, b.start, b.end))) return { className: 'booked', state: 'booked' };
+    if (tentative.some((b) => onDayOf(d, b.start, b.end))) return { className: 'tentative', state: 'tentative, you can still ask' };
     return { className: '', state: 'open' };
   };
 
@@ -102,6 +104,7 @@ export function Home() {
         <div className="legend">
           <span><i className="sw" style={{ background: '#fff', border: '1px solid var(--line)' }} />Open</span>
           <span><i className="sw" style={{ background: 'var(--booked)' }} />Booked</span>
+          {tentative.length > 0 && <span><i className="sw tentative-sw" />Tentative</span>}
           {mine.some((b) => b.status === 'approved' && b.end >= t) && <span><i className="sw" style={{ background: 'var(--blue)' }} />Your stay</span>}
           {pastStays.length > 0 && <span><i className="sw" style={{ background: 'var(--blue-tint)', border: '1px solid var(--blue)' }} />Past stay</span>}
           {mine.some((b) => b.status === 'pending') && <span><i className="sw" style={{ border: '2px dashed var(--blue)' }} />Your request</span>}

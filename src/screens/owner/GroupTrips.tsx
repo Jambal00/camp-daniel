@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 
-import { groupSmsHref, openWeekends, personById, rangeAvailable } from '../../lib/cabin';
+import { groupSmsHref, openWeekends, personById, rangeAvailable, tentativeOverlaps } from '../../lib/cabin';
 import { addDays, fmtDay, fmtRange, today } from '../../lib/dates';
-import { ANSWER_LABEL, bestOption, tally, votesFor } from '../../lib/groupTrips';
+import { ANSWER_LABEL, bestOption, optionBookedBy, optionRequests, tally, votesFor } from '../../lib/groupTrips';
 import { go, href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -41,7 +41,8 @@ export function GroupTripsSection() {
 export function GroupTripNew() {
   const { snap, me } = useSession();
   const guests = snap.people.filter((p) => p.tier !== 'owner');
-  const weekends = useMemo(() => openWeekends(snap.bookings, 10), [snap.bookings]);
+  // Open weekends that aren't already a choice in another vote.
+  const weekends = useMemo(() => openWeekends(snap.bookings, 14).filter((f) => !tentativeOverlaps(f, addDays(f, 2), snap.bookings).length).slice(0, 10), [snap.bookings]);
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [invitees, setInvitees] = useState<string[]>([]);
@@ -231,7 +232,9 @@ export function GroupTripView({ id }: { id: string }) {
 
       {trip.options.map((o, i) => {
         const r = t[i];
-        const isBest = best === i && trip.status === 'voting';
+        const bookedBy = trip.status === 'voting' ? optionBookedBy(snap, trip, i) : undefined;
+        const asks = trip.status === 'voting' ? optionRequests(snap, trip, i) : [];
+        const isBest = best === i && trip.status === 'voting' && !bookedBy;
         const isLocked = trip.lockedIndex === i;
         return (
           <section key={i} className={`card gt-option${isBest ? ' best' : ''}${trip.status === 'locked' && !isLocked ? ' faded' : ''}`}>
@@ -251,7 +254,9 @@ export function GroupTripView({ id }: { id: string }) {
                 <div key={a} className="small"><span className={`gt-dot ${a}`} /> <b>{ANSWER_LABEL[a]}:</b> {r[a].map(name).join(', ')}</div>
               ) : null,
             )}
-            {trip.status === 'voting' &&
+            {bookedBy && <div className="small strong" style={{ color: 'var(--red-ink)' }}>Now booked ({bookedBy.status === 'blocked' ? 'blocked for us' : personById(snap.people, bookedBy.personId)?.shortName ?? 'a guest'}), so it can't be locked in.</div>}
+            {asks.length > 0 && <div className="small">Also requested by {asks.map((a) => personById(snap.people, a.personId)?.shortName ?? 'a guest').join(', ')}. <a href={href(`/owner/approve/${asks[0].id}`)}>Review</a></div>}
+            {trip.status === 'voting' && !bookedBy &&
               (confirm === i ? (
                 <div className="card inset">
                   <div className="small">Lock in <b>{fmtRange(o.start, o.end)}</b>? {r.yes.length + r.maybe.length ? `${[...r.yes, ...r.maybe].map(name).join(', ')} get the trip on My trip.` : 'Nobody has said yes yet.'} The other dates open back up.</div>

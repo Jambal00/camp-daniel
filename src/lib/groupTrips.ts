@@ -1,4 +1,6 @@
 import type { GroupTrip, GroupVote, GroupVoteAnswer, Snapshot } from '../data/types';
+import { holding } from './cabin';
+import { rangesOverlap } from './dates';
 
 /** A trip member's first name and number: from People when visible (owners), else the trip's own list. */
 export function member(snap: Snapshot, trip: GroupTrip | undefined, id: string): { name: string; phone: string } {
@@ -42,3 +44,16 @@ export function invitesFor(snap: Snapshot, personId: string): GroupTrip[] {
 }
 
 export const ANSWER_LABEL: Record<GroupVoteAnswer, string> = { yes: 'Yes', maybe: 'If needed', no: 'No' };
+
+
+/** A date choice someone has since booked (approved stay or owner block) can't be locked in. */
+export function optionBookedBy(snap: Snapshot, trip: GroupTrip, index: number) {
+  const o = trip.options[index];
+  return holding(snap.bookings).find((b) => b.id !== o.holdId && b.groupTripId !== trip.id && rangesOverlap(o.start, o.end, b.start, b.end));
+}
+
+/** Pending guest requests for a date choice (owners see these). */
+export function optionRequests(snap: Snapshot, trip: GroupTrip, index: number) {
+  const o = trip.options[index];
+  return snap.bookings.filter((b) => b.status === 'pending' && rangesOverlap(o.start, o.end, b.start, b.end));
+}

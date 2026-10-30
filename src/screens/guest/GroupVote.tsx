@@ -3,7 +3,7 @@ import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import type { GroupVoteAnswer } from '../../data/types';
 import { fmtDay, fmtRange } from '../../lib/dates';
-import { ANSWER_LABEL, invitesFor, member, votesFor } from '../../lib/groupTrips';
+import { ANSWER_LABEL, invitesFor, member, optionBookedBy, votesFor } from '../../lib/groupTrips';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -54,7 +54,8 @@ export function GroupVote({ id }: { id: string }) {
   }
   const host = { shortName: member(snap, trip, trip.hostId).name };
   const name = (pid: string) => (pid === me.id ? 'You' : member(snap, trip, pid).name);
-  const done = answers.every((a) => a);
+  const gone = trip.options.map((_, i) => !!optionBookedBy(snap, trip, i));
+  const done = answers.every((a, i) => a || gone[i]);
   const locked = trip.status === 'locked' && trip.lockedIndex !== undefined ? trip.options[trip.lockedIndex] : null;
   const going = locked && snap.bookings.find((b) => b.id === trip.bookingId)?.crew?.includes(me.id);
 
@@ -66,7 +67,7 @@ export function GroupVote({ id }: { id: string }) {
     }
     setBusy(true);
     try {
-      await store.voteGroupTrip(trip.id, me.id, answers as GroupVoteAnswer[], comment.trim());
+      await store.voteGroupTrip(trip.id, me.id, answers.map((a, i) => (gone[i] ? 'no' : a)) as GroupVoteAnswer[], comment.trim());
       toast(mine ? 'Votes updated.' : `Thanks! ${host?.shortName ?? 'Pete'} will pick the date and let everyone know.`);
     } catch {
       toast('Couldn’t save your votes. Check your connection and try again.');
@@ -105,6 +106,9 @@ export function GroupVote({ id }: { id: string }) {
             return (
               <section key={i} className="card gt-option">
                 <div className="title-sm">{fmtRange(o.start, o.end)}</div>
+                {gone[i] ? (
+                  <div className="small muted">These dates got booked, so they're off the list.</div>
+                ) : (
                 <div className="gt-answers" role="radiogroup" aria-label={`Can you make ${fmtRange(o.start, o.end)}?`}>
                   {ANSWERS.map((a) => (
                     <button
@@ -119,7 +123,8 @@ export function GroupVote({ id }: { id: string }) {
                     </button>
                   ))}
                 </div>
-                {others.length > 0 && (
+                )}
+                {!gone[i] && others.length > 0 && (
                   <div className="small muted">
                     {ANSWERS.map((a) => {
                       const who = others.filter((v) => v.answers[i] === a).map((v) => name(v.personId));

@@ -21,7 +21,8 @@ export interface Person {
   tier: Tier;
 }
 
-export type BookingStatus = 'pending' | 'approved' | 'declined' | 'blocked' | 'cancelled';
+/** 'tentative' = a date choice held for a group trip vote: shown on the calendar, but still requestable. */
+export type BookingStatus = 'pending' | 'approved' | 'declined' | 'blocked' | 'cancelled' | 'tentative';
 
 export interface Booking {
   id: string;
@@ -66,7 +67,7 @@ export interface GroupTrip {
   inviteeIds: string[];
   /** Names (and numbers, for group texts) of the host and invitees, so everyone on the trip can see who's coming. */
   members?: Record<string, { name: string; phone: string }>;
-  /** 2–4 date choices. While voting, each is held on the calendar (shows "Booked" to guests). */
+  /** 2–4 date choices. While voting, each shows as "Tentative" on the calendar; guests can still request them. */
   options: { start: string; end: string; holdId?: string }[];
   /** YYYY-MM-DD, optional. */
   voteBy?: string;

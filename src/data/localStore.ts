@@ -86,7 +86,7 @@ export class LocalStore implements DataStore {
     const now = new Date().toISOString();
     const holds: Booking[] = input.options.map((o) => ({
       id: uid('b'), personId: input.hostId, start: o.start, end: o.end, partySize: input.inviteeIds.length + 1,
-      names: `Held for ${input.title}`, note: '', status: 'blocked', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now,
+      names: `Held for ${input.title}`, note: '', status: 'tentative', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now,
       bookedByOwner: true, groupTripId: id,
     }));
     const members = Object.fromEntries(
@@ -103,7 +103,7 @@ export class LocalStore implements DataStore {
   async updateGroupTrip(id: string, patch: Parameters<DataStore['updateGroupTrip']>[1]) {
     const trips = (this.state.groupTrips ?? []).map((t) => (t.id === id ? { ...t, ...patch } : t));
     const title = patch.title;
-    const bookings = title ? this.state.bookings.map((b) => (b.groupTripId === id && b.status === 'blocked' ? { ...b, names: `Held for ${title}` } : b)) : this.state.bookings;
+    const bookings = title ? this.state.bookings.map((b) => (b.groupTripId === id && (b.status === 'blocked' || b.status === 'tentative') ? { ...b, names: `Held for ${title}` } : b)) : this.state.bookings;
     this.commit({ ...this.state, groupTrips: trips, bookings });
   }
 
@@ -114,7 +114,7 @@ export class LocalStore implements DataStore {
     const now = new Date().toISOString();
     let stay: Booking | undefined;
     const bookings = this.state.bookings
-      .filter((b) => !(b.groupTripId === id && b.status === 'blocked' && b.id !== keep.holdId))
+      .filter((b) => !(b.groupTripId === id && (b.status === 'blocked' || b.status === 'tentative') && b.id !== keep.holdId))
       .map((b) => {
         if (b.id !== keep.holdId) return b;
         stay = { ...b, status: 'approved', names: trip.title, partySize: crew.length + 1, crew, welcomeNote: trip.note, decidedAt: now };
@@ -133,7 +133,7 @@ export class LocalStore implements DataStore {
   async cancelGroupTrip(id: string) {
     this.commit({
       ...this.state,
-      bookings: this.state.bookings.filter((b) => !(b.groupTripId === id && b.status === 'blocked')),
+      bookings: this.state.bookings.filter((b) => !(b.groupTripId === id && (b.status === 'blocked' || b.status === 'tentative'))),
       groupTrips: (this.state.groupTrips ?? []).map((t) => (t.id === id ? { ...t, status: 'cancelled' } : t)),
     });
   }

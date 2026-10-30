@@ -364,3 +364,8 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .gt-answer.no.on { background: var(--grey-tint); border-color: var(--grey-ink); color: var(--grey-ink); }
 .gt-invite { text-decoration: none; color: inherit; gap: 6px; border-color: var(--orange-line); background: linear-gradient(0deg, var(--surface), var(--orange-tint)); }
 .card.inset { background: var(--bg); box-shadow: none; }
+
+/* Tentative: a group trip date choice. Still requestable. */
+.day.tentative, .tentative-sw { background: repeating-linear-gradient(135deg, var(--surface) 0 5px, var(--booked) 5px 7px); border-color: var(--line); }
+.tentative-sw { border: 1px solid var(--line); }
+.day.tier.tentative { background: repeating-linear-gradient(135deg, var(--tt) 0 5px, transparent 5px 8px); border: 2px dashed var(--tc); color: var(--tc); }

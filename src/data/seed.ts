@@ -27,7 +27,7 @@ function sampleGroupTrip(): { trip: GroupTrip; holds: Booking[]; votes: GroupVot
   const starts = [addDays(f1, 7), addDays(f1, 42), addDays(f1, 49)];
   const holds: Booking[] = starts.map((s, i) => ({
     id: `b-gt-${i}`, personId: 'pete', start: s, end: addDays(s, 2), partySize: 5, names: "Held for Guys' weekend", note: '',
-    status: 'blocked', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now, bookedByOwner: true, groupTripId: 'gt-guys',
+    status: 'tentative', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now, bookedByOwner: true, groupTripId: 'gt-guys',
   }));
   const trip: GroupTrip = {
     id: 'gt-guys', title: "Guys' weekend", note: 'Fishing, cards, steaks on the grill. Bring waders and a sleeping bag.', hostId: 'pete',

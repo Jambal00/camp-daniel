@@ -3,8 +3,8 @@ import { toast } from '../../components/Toast';
 import { TierChip } from '../../components/bits';
 import { Icon } from '../../components/Icon';
 import { store } from '../../data';
-import { fillTemplate, mailHref, personById, rangeAvailable, smsHref } from '../../lib/cabin';
-import { fmtDay, fmtRangeLong, today } from '../../lib/dates';
+import { fillTemplate, mailHref, personById, rangeAvailable, smsHref, tentativeOverlaps } from '../../lib/cabin';
+import { fmtDay, fmtRange, fmtRangeLong, today } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -81,6 +81,12 @@ export function Approve({ id }: { id: string }) {
       </div>
       {b.note && <div className="callout">“{b.note}”</div>}
       {!free && <div className="alert"><Icon name="alert" size={20} />These dates overlap another stay. Check the calendar before approving.</div>}
+      {b.status === 'pending' && tentativeOverlaps(b.start, b.end, snap.bookings).map((h) => (
+        <div key={h.id} className="callout">
+          These dates are a choice in the <b>{h.names.replace(/^Held for /, '')}</b> vote ({fmtRange(h.start, h.end)}). Approving books them, and that choice drops out of the vote.{' '}
+          {h.groupTripId && <a href={href(`/owner/group/${h.groupTripId}`)}>See the vote</a>}
+        </div>
+      ))}
 
       <div className="field">
         <div className="section-label">

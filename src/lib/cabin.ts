@@ -8,7 +8,13 @@ export function holding(bookings: Booking[]): Booking[] {
 }
 
 export function bookingOn(date: ISODate, bookings: Booking[]): Booking | undefined {
-  return bookings.find((b) => onDayOf(date, b.start, b.end));
+  // A real stay or request wins over a group trip's tentative hold on the same day.
+  return bookings.find((b) => b.status !== 'tentative' && onDayOf(date, b.start, b.end)) ?? bookings.find((b) => onDayOf(date, b.start, b.end));
+}
+
+/** Group trip date choices (tentative) that overlap these dates. */
+export function tentativeOverlaps(start: ISODate, end: ISODate, bookings: Booking[]): Booking[] {
+  return bookings.filter((b) => b.status === 'tentative' && rangesOverlap(start, end, b.start, b.end));
 }
 
 /** Is this day held by a stay, including its departure day? */
