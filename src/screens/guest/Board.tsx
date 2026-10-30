@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { isOnStay } from '../../lib/cabin';
 import { LinkedText } from '../../components/LinkedText';
 import { Viewer } from '../../components/Photos';
 import { toast } from '../../components/Toast';
@@ -312,11 +313,11 @@ function Post({ p, canDelete, likes }: { p: GuestPost; canDelete: boolean; likes
 /** The guest posts: compose box (for people who have stayed) and the feed. */
 export function BoardFeed({ owner = false, stayId }: { owner?: boolean; stayId?: string | null }) {
   const { snap, me, isOwner } = useSession();
-  const stayBooking = stayId ? snap.bookings.find((b) => b.id === stayId && b.personId === me.id) : undefined;
+  const stayBooking = stayId ? snap.bookings.find((b) => b.id === stayId && isOnStay(b, me.id)) : undefined;
   const [stay, setStay] = useState(stayBooking ? fmtRange(stayBooking.start, stayBooking.end) : '');
   const posts = usePosts();
   const likes = useLikes();
-  const hasStayed = isOwner || snap.bookings.some((b) => b.personId === me.id && b.status === 'approved' && b.start <= today());
+  const hasStayed = isOwner || snap.bookings.some((b) => isOnStay(b, me.id) && b.status === 'approved' && b.start <= today());
 
   // Owners: opening their board marks everything as seen.
   useEffect(() => {

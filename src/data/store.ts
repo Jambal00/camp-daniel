@@ -1,4 +1,4 @@
-import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostLike, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
+import type { GroupTrip, GroupVoteAnswer, Booking, CabinSettings, GuestPost, GuestQuestion, PostLike, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot } from './types';
 
 /**
  * The one seam between the screens and wherever data lives.
@@ -18,6 +18,14 @@ export interface DataStore {
 
   createBooking(input: Omit<Booking, 'id' | 'createdAt'>): Promise<Booking>;
   updateBooking(id: string, patch: Partial<Booking>): Promise<Booking>;
+
+  /** Group trips (owners): create with date holds; lock one option in as the stay; or call it off. */
+  createGroupTrip(input: Pick<GroupTrip, 'title' | 'note' | 'hostId' | 'inviteeIds' | 'voteBy'> & { options: { start: string; end: string }[] }): Promise<GroupTrip>;
+  updateGroupTrip(id: string, patch: Partial<Pick<GroupTrip, 'title' | 'note' | 'inviteeIds' | 'voteBy'>>): Promise<void>;
+  lockGroupTrip(id: string, index: number, crew: string[]): Promise<Booking>;
+  cancelGroupTrip(id: string): Promise<void>;
+  /** Group trips (invitees): save my answers. */
+  voteGroupTrip(tripId: string, personId: string, answers: GroupVoteAnswer[], comment: string): Promise<void>;
 
   addPerson(input: Omit<Person, 'id'>): Promise<Person>;
   updatePerson(id: string, patch: Partial<Person>): Promise<Person>;

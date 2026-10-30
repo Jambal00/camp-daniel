@@ -1,6 +1,6 @@
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { GuestPost, GuestQuestion, GuidePhoto, PostLike, PostPhoto, Reminder, GuideSection, Snapshot } from './types';
+import type { Booking, GroupTrip, GroupVote, GroupVoteAnswer, GuestPost, GuestQuestion, GuidePhoto, PostLike, PostPhoto, Reminder, GuideSection, Snapshot } from './types';
 
 const KEY = 'camp-daniel:v1';
 const PHOTOS_KEY = 'camp-daniel:photos';
@@ -78,6 +78,64 @@ export class LocalStore implements DataStore {
     const updated = out;
     this.commit({ ...this.state, bookings: this.state.bookings.map((b) => (b.id === id ? updated : b)) });
     return updated;
+  }
+
+  // ---------- group trips ----------
+  async createGroupTrip(input: Parameters<DataStore['createGroupTrip']>[0]) {
+    const id = uid('gt');
+    const now = new Date().toISOString();
+    const holds: Booking[] = input.options.map((o) => ({
+      id: uid('b'), personId: input.hostId, start: o.start, end: o.end, partySize: input.inviteeIds.length + 1,
+      names: `Held for ${input.title}`, note: '', status: 'blocked', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now,
+      bookedByOwner: true, groupTripId: id,
+    }));
+    const trip: GroupTrip = { ...input, id, options: input.options.map((o, i) => ({ ...o, holdId: holds[i].id })), status: 'voting', createdAt: now };
+    this.commit({ ...this.state, bookings: [...this.state.bookings, ...holds], groupTrips: [...(this.state.groupTrips ?? []), trip] });
+    return trip;
+  }
+
+  async updateGroupTrip(id: string, patch: Parameters<DataStore['updateGroupTrip']>[1]) {
+    const trips = (this.state.groupTrips ?? []).map((t) => (t.id === id ? { ...t, ...patch } : t));
+    const title = patch.title;
+    const bookings = title ? this.state.bookings.map((b) => (b.groupTripId === id && b.status === 'blocked' ? { ...b, names: `Held for ${title}` } : b)) : this.state.bookings;
+    this.commit({ ...this.state, groupTrips: trips, bookings });
+  }
+
+  async lockGroupTrip(id: string, index: number, crew: string[]) {
+    const trip = (this.state.groupTrips ?? []).find((t) => t.id === id);
+    if (!trip) throw new Error('No such group trip');
+    const keep = trip.options[index];
+    const now = new Date().toISOString();
+    let stay: Booking | undefined;
+    const bookings = this.state.bookings
+      .filter((b) => !(b.groupTripId === id && b.status === 'blocked' && b.id !== keep.holdId))
+      .map((b) => {
+        if (b.id !== keep.holdId) return b;
+        stay = { ...b, status: 'approved', names: trip.title, partySize: crew.length + 1, crew, welcomeNote: trip.note, decidedAt: now };
+        return stay;
+      });
+    if (!stay) throw new Error('That date hold is gone');
+    const locked = stay;
+    this.commit({
+      ...this.state,
+      bookings,
+      groupTrips: (this.state.groupTrips ?? []).map((t) => (t.id === id ? { ...t, status: 'locked', lockedIndex: index, bookingId: locked.id } : t)),
+    });
+    return locked;
+  }
+
+  async cancelGroupTrip(id: string) {
+    this.commit({
+      ...this.state,
+      bookings: this.state.bookings.filter((b) => !(b.groupTripId === id && b.status === 'blocked')),
+      groupTrips: (this.state.groupTrips ?? []).map((t) => (t.id === id ? { ...t, status: 'cancelled' } : t)),
+    });
+  }
+
+  async voteGroupTrip(tripId: string, personId: string, answers: GroupVoteAnswer[], comment: string) {
+    const id = `${tripId}__${personId}`;
+    const v: GroupVote = { id, tripId, personId, answers, comment, updatedAt: new Date().toISOString() };
+    this.commit({ ...this.state, groupVotes: [...(this.state.groupVotes ?? []).filter((x) => x.id !== id), v] });
   }
 
   async addPerson(input: Parameters<DataStore['addPerson']>[0]) {

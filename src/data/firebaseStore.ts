@@ -23,7 +23,7 @@ import { db } from './firebase';
 import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Booking, CabinSettings, GuestPost, GuestQuestion, PostLike, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
+import type { Booking, CabinSettings, GroupTrip, GuestPost, GuestQuestion, PostLike, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
 
 /** photoThumbs/{id}: the small copy galleries show. */
 interface ThumbDoc {
@@ -381,6 +381,23 @@ export class FirebaseStore implements DataStore {
     await setDoc(ref, { ...stored, doorCode: '' });
     if (this.isOwner) await this.syncSideDocs({ ...b, doorCode });
     return b;
+  }
+
+  // Group trips: wired to Firestore once the design is approved (sample-data demo only for now).
+  async createGroupTrip(): Promise<GroupTrip> {
+    throw new Error('Group trips are coming soon.');
+  }
+  async updateGroupTrip() {
+    throw new Error('Group trips are coming soon.');
+  }
+  async lockGroupTrip(): Promise<Booking> {
+    throw new Error('Group trips are coming soon.');
+  }
+  async cancelGroupTrip() {
+    throw new Error('Group trips are coming soon.');
+  }
+  async voteGroupTrip() {
+    throw new Error('Group trips are coming soon.');
   }
 
   async updateBooking(id: string, patch: Partial<Booking>) {

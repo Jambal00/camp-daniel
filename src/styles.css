@@ -338,3 +338,29 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .switch.on .knob { transform: translateX(20px); }
 .switch:disabled { opacity: .5; }
 .notify-row { align-items: center; gap: 12px; }
+
+/* Group trips */
+.check-row { gap: 12px; align-items: center; cursor: pointer; }
+.check-row input { width: 22px; height: 22px; accent-color: var(--blue); flex-shrink: 0; }
+.custom-dates { display: flex; flex-direction: column; gap: 8px; }
+.custom-dates[open] { gap: 8px; }
+.custom-dates summary { list-style: none; cursor: pointer; }
+.custom-dates summary::-webkit-details-marker { display: none; }
+.gt-option { gap: 10px; }
+.gt-option.best { border-color: var(--orange-line); box-shadow: 0 0 0 2px var(--orange-tint); }
+.gt-option.faded { opacity: .55; }
+.gt-bars { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--line-soft); }
+.gt-bars span { display: block; }
+.gt-bars .yes, .gt-dot.yes { background: var(--blue); }
+.gt-bars .maybe, .gt-dot.maybe { background: var(--orange-bright); }
+.gt-bars .no, .gt-dot.no { background: var(--line); }
+.gt-bars .none { background: transparent; }
+.gt-dot { display: inline-block; width: 9px; height: 9px; border-radius: 99px; vertical-align: 1px; margin-right: 2px; }
+.gt-who { margin-right: 12px; white-space: nowrap; }
+.gt-answers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.gt-answer { border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 700; font-size: 15px; min-height: 46px; border-radius: 10px; cursor: pointer; }
+.gt-answer.yes.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+.gt-answer.maybe.on { background: var(--orange-tint); border-color: var(--orange-bright); color: var(--orange-ink); }
+.gt-answer.no.on { background: var(--grey-tint); border-color: var(--grey-ink); color: var(--grey-ink); }
+.gt-invite { text-decoration: none; color: inherit; gap: 6px; border-color: var(--orange-line); background: linear-gradient(0deg, var(--surface), var(--orange-tint)); }
+.card.inset { background: var(--bg); box-shadow: none; }

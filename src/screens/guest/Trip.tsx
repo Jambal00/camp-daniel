@@ -5,7 +5,7 @@ import { Empty, Stepper, StayTimeline } from '../../components/bits';
 import { Icon } from '../../components/Icon';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
-import { accessUnlocked, changeRequestFor, fillTemplate, mapsHref, nextTripFor, smsHref, stayPhase } from '../../lib/cabin';
+import { accessUnlocked, changeRequestFor, fillTemplate, groupSmsHref, isOnStay, mapsHref, nextTripFor, smsHref, stayPhase } from '../../lib/cabin';
 import { daysBetween, fmtDay, fmtRange, today } from '../../lib/dates';
 import { go, href } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -22,7 +22,7 @@ function seenKey(id: string) {
 function PastStays() {
   const { snap, me } = useSession();
   const past = snap.bookings
-    .filter((b) => b.personId === me.id && b.status === 'approved' && b.end < today())
+    .filter((b) => isOnStay(b, me.id) && b.status === 'approved' && b.end < today())
     .sort((a, b) => b.start.localeCompare(a.start));
   if (past.length === 0) return null;
   return (
@@ -44,6 +44,26 @@ function PastStays() {
 }
 
 /** Change dates or people, or cancel. Before the stay starts only. */
+/** Group trips: everyone on the stay, with one tap to text the group. */
+function WhosComing({ trip }: { trip: Booking }) {
+  const { snap, me } = useSession();
+  const people = [trip.personId, ...(trip.crew ?? [])].map((id) => snap.people.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p);
+  const others = people.filter((p) => p.id !== me.id && p.phone);
+  return (
+    <section className="card" aria-label="Who's coming">
+      <div className="eyebrow">Who's coming · {people.length}</div>
+      <div className="row wrap" style={{ gap: 6 }}>
+        {people.map((p) => (
+          <span key={p.id} className={`chip ${p.id === me.id ? 'blue' : 'grey'}`}>{p.id === me.id ? 'You' : p.shortName}</span>
+        ))}
+      </div>
+      {others.length > 0 && (
+        <a className="btn outline" href={groupSmsHref(others.map((p) => p.phone), `${trip.names}: `)}>Text the group</a>
+      )}
+    </section>
+  );
+}
+
 function ManageTrip({ trip }: { trip: Booking }) {
   const { snap, previewing } = useSession();
   const change = trip.status === 'approved' ? changeRequestFor(trip, snap.bookings) : undefined;
@@ -329,7 +349,8 @@ export function Trip() {
           </a>
         </section>
       )}
-      {(phase === 'requested' || phase === 'upcoming') && <ManageTrip key={trip.id} trip={trip} />}
+      {trip.crew && <WhosComing trip={trip} />}
+      {(phase === 'requested' || phase === 'upcoming') && trip.personId === me.id && !trip.groupTripId && <ManageTrip key={trip.id} trip={trip} />}
 
       <PastStays />
     </main>

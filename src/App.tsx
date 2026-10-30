@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { listenForNotificationTaps } from './lib/push';
 import { Alerts } from './screens/Alerts';
+import { GroupTripNew, GroupTripView } from './screens/owner/GroupTrips';
+import { GroupVote } from './screens/guest/GroupVote';
 import { GUEST_TABS, ownerTabs, TabBar } from './components/TabBar';
 import { Toaster } from './components/Toast';
 import { ViewSwitch } from './components/PreviewBar';
@@ -148,6 +150,8 @@ function pickScreen({ path, query }: Route, isOwner: boolean) {
     if (b === 'guide') return <OwnerGuide />;
     if (b === 'people') return <People />;
     if (b === 'alerts') return <Alerts />;
+    if (b === 'group' && c === 'new') return <GroupTripNew />;
+    if (b === 'group' && c) return <GroupTripView id={c} />;
     return <OwnerHome />;
   }
   if (a === 'request') return <Request route={{ path, query }} />;
@@ -157,6 +161,7 @@ function pickScreen({ path, query }: Route, isOwner: boolean) {
   if (a === 'guide') return <Guide />;
   if (a === 'contact') return <Contact />;
   if (a === 'alerts') return <Alerts />;
+  if (a === 'group' && b) return <GroupVote id={b} />;
   if (a === 'photos') return <PhotosHub tab={query.get('tab') === 'guests' ? 'guests' : 'album'} stayId={query.get('stay')} />;
   if (a === 'album') return <PhotosHub tab="album" />;
   if (a === 'guests') return <PhotosHub tab="guests" />;

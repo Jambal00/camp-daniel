@@ -72,11 +72,16 @@ export function changeRequestFor(stay: Booking, bookings: Booking[]): Booking | 
   return bookings.find((b) => b.replaces === stay.id && b.status === 'pending');
 }
 
+/** On this stay: the person who booked it, or part of a group trip's crew. */
+export function isOnStay(b: Booking, personId: string): boolean {
+  return b.personId === personId || !!b.crew?.includes(personId);
+}
+
 export function nextTripFor(personId: string, bookings: Booking[]): Booking | undefined {
   const t = today();
   // A change request rides along with the stay it would replace, so it isn't a trip of its own.
   return bookings
-    .filter((b) => b.personId === personId && (b.status === 'pending' || b.status === 'approved') && b.end >= t)
+    .filter((b) => isOnStay(b, personId) && (b.status === 'pending' || b.status === 'approved') && b.end >= t)
     .filter((b) => !(b.status === 'pending' && b.replaces && bookings.some((o) => o.id === b.replaces && o.status === 'approved')))
     .sort((a, b) => a.start.localeCompare(b.start))[0];
 }
@@ -131,6 +136,13 @@ export function fillTemplate(body: string, vars: Record<string, string>): string
 /** Opens the phone's Messages app with the text filled in. Works on iOS and Android. */
 export function smsHref(phone: string, body: string): string {
   return `sms:${phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(body)}`;
+}
+
+/** A group text to several numbers (iPhone and Android both accept comma-separated numbers). */
+export function groupSmsHref(phones: string[], body = ''): string {
+  const nums = phones.map((p) => p.replace(/[^\d+]/g, '')).filter(Boolean);
+  const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
+  return isIOS ? `sms://open?addresses=${nums.join(',')}&body=${encodeURIComponent(body)}` : `sms:${nums.join(',')}?body=${encodeURIComponent(body)}`;
 }
 
 export function mailHref(email: string, subject: string, body: string): string {

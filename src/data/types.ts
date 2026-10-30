@@ -48,6 +48,41 @@ export interface Booking {
   cancelledAt?: string;
   /** For a change-of-dates request: the approved stay it would replace. */
   replaces?: string;
+  /** Group trips: the trip this stay (or date hold) belongs to. */
+  groupTripId?: string;
+  /** Group trips: everyone else on this stay; they see it on My trip, with the door code. */
+  crew?: string[];
+}
+
+export type GroupVoteAnswer = 'yes' | 'maybe' | 'no';
+
+/** An owner-hosted trip for several people: they vote on a few dates, the owner locks one in. */
+export interface GroupTrip {
+  id: string;
+  title: string;
+  /** Shown on the invite and, once locked, as the welcome note. */
+  note: string;
+  hostId: string;
+  inviteeIds: string[];
+  /** 2–4 date choices. While voting, each is held on the calendar (shows "Booked" to guests). */
+  options: { start: string; end: string; holdId?: string }[];
+  /** YYYY-MM-DD, optional. */
+  voteBy?: string;
+  status: 'voting' | 'locked' | 'cancelled';
+  lockedIndex?: number;
+  /** The stay created when it's locked in. */
+  bookingId?: string;
+  createdAt: string;
+}
+
+/** One person's answers for a group trip, one per option. Id is `${tripId}__${personId}`. */
+export interface GroupVote {
+  id: string;
+  tripId: string;
+  personId: string;
+  answers: GroupVoteAnswer[];
+  comment: string;
+  updatedAt: string;
 }
 
 export type GuideGroup = 'arrive' | 'stay' | 'leave';
@@ -183,6 +218,9 @@ export interface Snapshot {
   /** Owners only: sign-in history keyed by person id. */
   visits?: Record<string, Visit>;
   bookings: Booking[];
+  /** Group trips this person hosts or is invited to (owners: all). */
+  groupTrips?: GroupTrip[];
+  groupVotes?: GroupVote[];
   guide: GuideSection[];
   templates: MessageTemplate[];
   settings: CabinSettings;

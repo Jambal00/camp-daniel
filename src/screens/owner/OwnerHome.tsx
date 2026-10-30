@@ -1,4 +1,5 @@
 import { QuestionsLink } from './Questions';
+import { GroupTripsSection } from './GroupTrips';
 import { NotificationsPrompt } from '../../components/Notifications';
 import { BoardLink, postsSeenAt, usePosts } from '../guest/Board';
 import { useState } from 'react';
@@ -127,6 +128,8 @@ export function OwnerHome() {
             </div>
           </>
         )}
+
+        <GroupTripsSection />
 
         <QuestionsLink />
         <BoardLink sub={newPosts.length ? 'New photos and tips from your guests' : 'Photos and tips from your guests'} badge={newPosts.length} />

@@ -1,9 +1,10 @@
 import { RemindMe } from './RemindMe';
+import { GroupInvites } from './GroupVote';
 import { PhotosLink } from './PhotosHub';
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
 import { toast } from '../../components/Toast';
-import { holding, isDayTaken, nextTripFor, mapsHref, rangeAvailable } from '../../lib/cabin';
+import { holding, isDayTaken, isOnStay, nextTripFor, mapsHref, rangeAvailable } from '../../lib/cabin';
 import { daysBetween, fmtDay, fmtRange, fmtRangeLong, onDayOf, today, type ISODate } from '../../lib/dates';
 import { go, href, useRoute } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -17,7 +18,7 @@ export function Home() {
   const [sel, setSel] = useState<{ start?: ISODate; end?: ISODate }>({});
   const t = today();
   const trip = nextTripFor(me.id, snap.bookings);
-  const mine = snap.bookings.filter((b) => b.personId === me.id && (b.status === 'pending' || b.status === 'approved'));
+  const mine = snap.bookings.filter((b) => isOnStay(b, me.id) && (b.status === 'pending' || b.status === 'approved'));
   const others = holding(snap.bookings).filter((b) => b.personId !== me.id);
 
   const pastStays = mine.filter((b) => b.status === 'approved' && b.start < t);
@@ -67,6 +68,8 @@ export function Home() {
           <a className="link-btn" style={{ minHeight: 32, flexShrink: 0 }} href={href('/trip')}>Never mind</a>
         </div>
       )}
+
+      {!changing && <GroupInvites />}
 
       {!changing && trip?.status === 'approved' && (
         <a href={href('/trip')} className="card" style={{ textDecoration: 'none', color: 'inherit', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>

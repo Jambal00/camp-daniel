@@ -1,6 +1,6 @@
 import { addDays, nextFriday, today } from '../lib/dates';
 import { GUIDE } from './guide';
-import type { Booking, Person, Snapshot } from './types';
+import type { Booking, GroupTrip, GroupVote, Person, Snapshot } from './types';
 
 // Sample data for local development. Bookings are placed relative to today
 // so the calendar always has something on it. Everyone except Pete and
@@ -16,7 +16,27 @@ export const PEOPLE: Person[] = [
   { id: 'maddie', name: 'Maddie (example)', shortName: 'Maddie', email: 'maddie@example.com', phone: '', tier: 'kids' },
   { id: 'tyler', name: 'Tyler (example)', shortName: 'Tyler', email: 'tyler@example.com', phone: '', tier: 'kids' },
   { id: 'rick', name: 'Rick & Jen Larson (example)', shortName: 'Rick', email: 'rick@example.com', phone: '', tier: 'friends' },
+  { id: 'dave', name: 'Dave (example)', shortName: 'Dave', email: 'dave@example.com', phone: '555-0101', tier: 'friends' },
+  { id: 'mike', name: 'Mike (example)', shortName: 'Mike', email: 'mike@example.com', phone: '555-0102', tier: 'friends' },
 ];
+
+/** A sample group trip mid-vote: dates held, three of four have voted. */
+function sampleGroupTrip(): { trip: GroupTrip; holds: Booking[]; votes: GroupVote[] } {
+  const f1 = nextFriday(addDays(today(), 1));
+  const now = new Date().toISOString();
+  const starts = [addDays(f1, 7), addDays(f1, 42), addDays(f1, 49)];
+  const holds: Booking[] = starts.map((s, i) => ({
+    id: `b-gt-${i}`, personId: 'pete', start: s, end: addDays(s, 2), partySize: 5, names: "Held for Guys' weekend", note: '',
+    status: 'blocked', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now, bookedByOwner: true, groupTripId: 'gt-guys',
+  }));
+  const trip: GroupTrip = {
+    id: 'gt-guys', title: "Guys' weekend", note: 'Fishing, cards, steaks on the grill. Bring waders and a sleeping bag.', hostId: 'pete',
+    inviteeIds: ['tyler', 'dave', 'mike', 'rick'], options: holds.map((h) => ({ start: h.start, end: h.end, holdId: h.id })),
+    voteBy: addDays(today(), 5), status: 'voting', createdAt: now,
+  };
+  const v = (personId: string, answers: GroupVote['answers'], comment = ''): GroupVote => ({ id: `gt-guys__${personId}`, tripId: 'gt-guys', personId, answers, comment, updatedAt: now });
+  return { trip, holds, votes: [v('tyler', ['yes', 'maybe', 'no']), v('dave', ['yes', 'yes', 'no'], 'Could only do Saturday night on the second one.'), v('mike', ['maybe', 'yes', 'yes'])] };
+}
 
 function sampleBookings(): Booking[] {
   const t = today();
@@ -58,9 +78,12 @@ function sampleBookings(): Booking[] {
 }
 
 export function seedSnapshot(): Snapshot {
+  const gt = sampleGroupTrip();
   return {
     people: PEOPLE,
-    bookings: sampleBookings(),
+    bookings: [...sampleBookings(), ...gt.holds],
+    groupTrips: [gt.trip],
+    groupVotes: gt.votes,
     visits: {
       pete: { firstSeen: `${addDays(today(), -20)}T19:02:00.000Z`, lastSeen: new Date().toISOString() },
       tyler: { firstSeen: `${addDays(today(), -9)}T01:15:00.000Z`, lastSeen: `${addDays(today(), -2)}T22:40:00.000Z` },
