@@ -162,5 +162,30 @@ exports.cancelReminderInvite = functions.firestore.document('reminders/{id}').on
   }
 });
 
+// ---------- Photo thumbnails ----------
+const { syncThumb } = require('./thumbs');
+
+const thumbFn = functions.runWith({ memory: '512MB', timeoutSeconds: 60 }).firestore;
+
+exports.thumbGuidePhoto = thumbFn.document('photos/{id}').onWrite(async (change, ctx) => {
+  const before = change.before.exists ? change.before.data() : null;
+  const after = change.after.exists ? change.after.data() : null;
+  try {
+    await syncThumb(admin.firestore(), 'guide', ctx.params.id, before, after);
+  } catch (e) {
+    console.error('Thumbnail failed', ctx.params.id, e);
+  }
+});
+
+exports.thumbPostPhoto = thumbFn.document('postPhotos/{id}').onWrite(async (change, ctx) => {
+  const before = change.before.exists ? change.before.data() : null;
+  const after = change.after.exists ? change.after.data() : null;
+  try {
+    await syncThumb(admin.firestore(), 'post', ctx.params.id, before, after);
+  } catch (e) {
+    console.error('Thumbnail failed', ctx.params.id, e);
+  }
+});
+
 // For tests only.
 exports._test = { buildIcs, nineAmCentral, prettyDay };

@@ -1,0 +1,61 @@
+name: Make photo thumbnails
+
+# Run by hand: Actions › "Make photo thumbnails" › Run workflow.
+# Makes the small gallery copy for any photo that doesn't have one yet (new photos
+# get theirs automatically from the server). Full photos are not changed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      redo:
+        description: Remake every thumbnail, not just missing ones
+        type: boolean
+        default: false
+
+jobs:
+  thumbs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --prefix functions --no-audit --no-fund
+      - name: Make thumbnails
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          REDO: ${{ inputs.redo }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          cd functions
+          node -e '
+            const admin = require("firebase-admin");
+            const { syncThumb } = require("./thumbs");
+            admin.initializeApp({ projectId: "camp-daniel" });
+            const db = admin.firestore();
+            const redo = process.env.REDO === "true";
+            (async () => {
+              const tally = {};
+              let fullBytes = 0, thumbBytes = 0, failed = 0;
+              for (const [col, kind] of [["photos", "guide"], ["postPhotos", "post"]]) {
+                const snap = await db.collection(col).get();
+                for (const d of snap.docs) {
+                  const data = d.data();
+                  try {
+                    const r = await syncThumb(db, kind, d.id, redo ? null : data, data);
+                    tally[`${col} ${r}`] = (tally[`${col} ${r}`] || 0) + 1;
+                    fullBytes += (data.data || "").length;
+                    const t = await db.collection("photoThumbs").doc(d.id).get();
+                    thumbBytes += ((t.data() || {}).thumb || "").length;
+                  } catch (e) {
+                    failed++;
+                    console.log(`::warning::${col}/${d.id}: ${e.message}`);
+                  }
+                }
+              }
+              const mb = (n) => (n / 1048576).toFixed(1) + " MB";
+              console.log(`::notice::Thumbnails: ${JSON.stringify(tally)}; failed ${failed}. Full photos ${mb(fullBytes)} -> thumbnails ${mb(thumbBytes)}`);
+              if (failed) process.exit(1);
+            })().catch((e) => { console.log(`::error::${e.message}`); process.exit(1); });
+          '
