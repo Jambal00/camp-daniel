@@ -1,0 +1,51 @@
+name: Check photo sizes
+
+# Run by hand: Actions › "Check photo sizes" › Run workflow. Read-only: counts the
+# photos the app downloads and how big they are. Changes nothing.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --prefix functions --no-audit --no-fund
+      - name: Measure
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          cd functions
+          node -e '
+            const admin = require("firebase-admin");
+            admin.initializeApp({ projectId: "camp-daniel" });
+            const db = admin.firestore();
+            const mb = (n) => (n / 1048576).toFixed(1) + " MB";
+            const size = (s) => (typeof s === "string" ? s.length : 0);
+            (async () => {
+              const out = [];
+              const photos = await db.collection("photos").get();
+              const bySection = {};
+              let big = 0;
+              photos.forEach((d) => { const x = d.data(); const s = x.sectionId || "?"; bySection[s] ??= { n: 0, bytes: 0, max: 0 }; const b = size(x.data); bySection[s].n++; bySection[s].bytes += b; bySection[s].max = Math.max(bySection[s].max, b); if (b > 400000) big++; });
+              let total = 0; Object.values(bySection).forEach((v) => (total += v.bytes));
+              out.push(`Guide and album photos: ${photos.size}, ${mb(total)} total, ${big} over 400 KB`);
+              Object.entries(bySection).sort((a, b) => b[1].bytes - a[1].bytes).forEach(([s, v]) => out.push(`  section ${s}: ${v.n} photos, ${mb(v.bytes)}, largest ${(v.max / 1024).toFixed(0)} KB`));
+              const posts = await db.collection("posts").get();
+              let legacy = 0, legacyBytes = 0;
+              posts.forEach((d) => { const b = size(d.data().photo); if (b) { legacy++; legacyBytes += b; } });
+              out.push(`Guest posts: ${posts.size} (${legacy} with an older built-in photo, ${mb(legacyBytes)})`);
+              const pp = await db.collection("postPhotos").get();
+              let ppBytes = 0, orphans = 0; const ids = new Set(posts.docs.map((d) => d.id));
+              pp.forEach((d) => { ppBytes += size(d.data().data); if (!ids.has(d.data().postId)) orphans++; });
+              out.push(`Guest post photos: ${pp.size}, ${mb(ppBytes)}, ${orphans} left over from deleted posts`);
+              out.push(`Likes: ${(await db.collection("likes").get()).size}`);
+              for (const l of out) console.log(`::notice::${l.replace(/\n/g, " ")}`);
+            })().catch((e) => { console.log(`::error::${e.message}`); process.exit(1); });
+          '
