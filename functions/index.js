@@ -315,9 +315,13 @@ async function staysStarting(db, day) {
   const out = [];
   for (const d of snap.docs) {
     const b = d.data();
-    if (b.status !== 'approved' || owners.includes(String(b.personId).toLowerCase())) continue;
+    const hostIsOwner = owners.includes(String(b.personId).toLowerCase());
+    const crew = Array.isArray(b.crew) ? b.crew : [];
+    if (b.status !== 'approved' || (hostIsOwner && !crew.length)) continue;
     const acc = await db.collection('access').doc(d.id).get();
-    out.push({ id: d.id, ...b, doorCode: (acc.exists && acc.data().doorCode) || '' });
+    // Guests on the stay: whoever booked it (unless it's an owner's group trip) plus the crew.
+    const guests = [...(hostIsOwner ? [] : [b.personId]), ...crew];
+    out.push({ id: d.id, ...b, guests, doorCode: (acc.exists && acc.data().doorCode) || '' });
   }
   return { owners, stays: out };
 }
@@ -332,7 +336,7 @@ exports.morningNudges = functions.pubsub.schedule('0 9 * * *').timeZone(TZ).onRu
       try {
         if (offset === 3) {
           await once(db, `trip-soon-${s.id}`, () =>
-            notify(db, [s.personId], 'tripSoon', {
+            notify(db, s.guests, 'tripSoon', {
               title: 'Camp Daniel in 3 days!',
               body: `${fmtShort(s.start, s.end)}. Tap for directions, the guide and what to bring.`,
               url: APP('/trip'),
@@ -341,7 +345,7 @@ exports.morningNudges = functions.pubsub.schedule('0 9 * * *').timeZone(TZ).onRu
           );
         }
         if (!s.doorCode) {
-          const who = await nameOf(db, s.personId, s.names);
+          const who = s.crew && s.crew.length ? s.names : await nameOf(db, s.personId, s.names);
           await once(db, `door-code-${s.id}-${day === chicagoDay(0) ? 'today' : 'soon'}`, () =>
             notify(db, owners, 'doorCode', {
               title: `Door code needed for ${first(who)}`,
@@ -366,7 +370,7 @@ exports.noonCodeReady = functions.pubsub.schedule('0 12 * * *').timeZone(TZ).onR
     if (!s.doorCode) continue;
     try {
       await once(db, `code-ready-${s.id}`, () =>
-        notify(db, [s.personId], 'codeReady', {
+        notify(db, s.guests, 'codeReady', {
           title: 'Your door code is ready',
           body: 'Welcome to Camp Daniel! Tap for the door code and Wi-Fi.',
           url: APP('/trip'),
@@ -375,6 +379,133 @@ exports.noonCodeReady = functions.pubsub.schedule('0 12 * * *').timeZone(TZ).onR
       );
     } catch (e) {
       console.error('Code-ready push failed', s.id, e);
+    }
+  }
+});
+
+// ---------- Group trips ----------
+const { inviteEmail, lockedEmail } = require('./groupEmails');
+
+async function personInfo(db, id) {
+  const s = await db.collection('people').doc(id).get();
+  const d = s.exists ? s.data() : {};
+  return { email: d.email || (String(id).includes('@') ? id : ''), short: d.shortName || (d.name || 'Someone').split(/\s+/)[0] };
+}
+
+// Invites: an email to each person (they may not have the app yet) plus a notification.
+exports.groupTripInvite = functions.firestore.document('groupTrips/{id}').onCreate(async (snap, ctx) => {
+  const t = snap.data() || {};
+  const db = admin.firestore();
+  const host = await personInfo(db, t.hostId);
+  const link = APP(`/group/${ctx.params.id}`);
+  for (const pid of t.inviteeIds || []) {
+    try {
+      await once(db, `group-invite-${ctx.params.id}-${pid}`, async () => {
+        const me = await personInfo(db, pid);
+        const others = [];
+        for (const o of t.inviteeIds) if (o !== pid) others.push((await personInfo(db, o)).short);
+        await notify(db, [pid], 'groupTrips', {
+          title: `${host.short} invited you: ${t.title}`,
+          body: `${t.options.length} date choices${t.voteBy ? `, vote by ${new Date(`${t.voteBy}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })}` : ''}. Tap to vote.`,
+          url: link,
+          tag: `group-${ctx.params.id}`,
+        });
+        if (me.email) await sendMail({ to: me.email, replyTo: host.email || undefined, ...inviteEmail(t, { host: host.short, others, email: me.email, link }) });
+      });
+    } catch (e) {
+      console.error('Group invite failed', ctx.params.id, pid, e);
+    }
+  }
+});
+
+// Locked in or called off.
+exports.groupTripDecided = functions.firestore.document('groupTrips/{id}').onUpdate(async (change, ctx) => {
+  const b = change.before.data() || {};
+  const t = change.after.data() || {};
+  if (b.status === t.status) return;
+  const db = admin.firestore();
+  const id = ctx.params.id;
+  try {
+    const host = await personInfo(db, t.hostId);
+    if (t.status === 'locked' && t.lockedIndex !== undefined) {
+      const opt = t.options[t.lockedIndex];
+      const stay = t.bookingId ? (await db.collection('bookings').doc(t.bookingId).get()).data() : null;
+      const crew = (stay && stay.crew) || [];
+      const going = [host.short];
+      for (const pid of crew) going.push((await personInfo(db, pid)).short);
+      for (const pid of t.inviteeIds || []) {
+        await once(db, `group-locked-${id}-${pid}`, async () => {
+          const on = crew.includes(pid);
+          await notify(db, [pid], 'groupTrips', {
+            title: on ? `It's set: ${t.title}!` : `${t.title} is set`,
+            body: on ? `${fmtShort(opt.start, opt.end)}. Tap for your trip.` : `It's ${fmtShort(opt.start, opt.end)}. You're not on this one. Next time!`,
+            url: on ? APP('/trip') : APP(`/group/${id}`),
+            tag: `group-${id}`,
+          });
+          if (on) {
+            const me = await personInfo(db, pid);
+            if (me.email) await sendMail({ to: me.email, replyTo: host.email || undefined, ...lockedEmail(t, opt, { host: host.short, going, link: APP('/trip') }) });
+          }
+        });
+      }
+    } else if (t.status === 'cancelled') {
+      await notify(db, t.inviteeIds || [], 'groupTrips', { title: `${t.title} is called off`, body: `${host.short} called off this one.`, url: APP('/'), tag: `group-${id}` });
+    }
+  } catch (e) {
+    console.error('Group decided push failed', id, e);
+  }
+});
+
+// Owners: each vote, and when everyone has voted.
+exports.groupTripVote = functions.firestore.document('groupVotes/{id}').onWrite(async (change) => {
+  if (!change.after.exists) return;
+  const v = change.after.data();
+  const db = admin.firestore();
+  try {
+    const tSnap = await db.collection('groupTrips').doc(v.tripId).get();
+    if (!tSnap.exists) return;
+    const t = tSnap.data();
+    if (t.status !== 'voting') return;
+    const votes = await db.collection('groupVotes').where('tripId', '==', v.tripId).get();
+    const n = votes.docs.filter((d) => (t.inviteeIds || []).includes(d.data().personId)).length;
+    const total = (t.inviteeIds || []).length;
+    const who = (await personInfo(db, v.personId)).short;
+    const updated = change.before.exists;
+    await notify(db, await ownerIds(db), 'groupVotes', {
+      title: n === total && !updated ? `Everyone's voted on ${t.title}` : `${who} ${updated ? 'changed their votes' : 'voted'} on ${t.title}`,
+      body: n === total ? 'Tap to see the results and lock in a date.' : `${n} of ${total} in.`,
+      url: APP(`/owner/group/${v.tripId}`),
+      tag: `group-votes-${v.tripId}`,
+    });
+  } catch (e) {
+    console.error('Group vote push failed', e);
+  }
+});
+
+// Mornings: remind people who haven't voted the day before the deadline; tell owners when it has passed.
+exports.groupTripDeadlines = functions.pubsub.schedule('5 9 * * *').timeZone(TZ).onRun(async () => {
+  const db = admin.firestore();
+  const trips = await db.collection('groupTrips').where('status', '==', 'voting').get();
+  const tomorrow = chicagoDay(1);
+  const yesterday = chicagoDay(-1);
+  for (const d of trips.docs) {
+    const t = d.data();
+    try {
+      if (t.voteBy === tomorrow) {
+        const votes = await db.collection('groupVotes').where('tripId', '==', d.id).get();
+        const voted = new Set(votes.docs.map((x) => x.data().personId));
+        const waiting = (t.inviteeIds || []).filter((p) => !voted.has(p));
+        await once(db, `group-remind-${d.id}`, () =>
+          notify(db, waiting, 'groupTrips', { title: `Vote on dates for ${t.title}`, body: 'Voting closes tomorrow. It takes 10 seconds.', url: APP(`/group/${d.id}`), tag: `group-${d.id}` }),
+        );
+      }
+      if (t.voteBy && t.voteBy <= yesterday) {
+        await once(db, `group-closed-${d.id}`, async () =>
+          notify(db, await ownerIds(db), 'groupVotes', { title: `Voting's closed: ${t.title}`, body: 'Tap to pick the date and lock it in.', url: APP(`/owner/group/${d.id}`), tag: `group-votes-${d.id}` }),
+        );
+      }
+    } catch (e) {
+      console.error('Group deadline failed', d.id, e);
     }
   }
 });

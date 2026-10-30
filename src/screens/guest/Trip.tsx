@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { member } from '../../lib/groupTrips';
 import { NotificationsPrompt } from '../../components/Notifications';
 import type { Booking } from '../../data/types';
 import { Empty, Stepper, StayTimeline } from '../../components/bits';
@@ -47,7 +48,8 @@ function PastStays() {
 /** Group trips: everyone on the stay, with one tap to text the group. */
 function WhosComing({ trip }: { trip: Booking }) {
   const { snap, me } = useSession();
-  const people = [trip.personId, ...(trip.crew ?? [])].map((id) => snap.people.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p);
+  const gt = (snap.groupTrips ?? []).find((t) => t.id === trip.groupTripId);
+  const people = [trip.personId, ...(trip.crew ?? [])].map((id) => ({ id, shortName: member(snap, gt, id).name, phone: member(snap, gt, id).phone }));
   const others = people.filter((p) => p.id !== me.id && p.phone);
   return (
     <section className="card" aria-label="Who's coming">

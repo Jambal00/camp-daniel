@@ -18,11 +18,13 @@ const OWNER_KINDS: Kind[] = [
   { key: 'cancel', label: 'Cancellations', sub: 'A guest cancels, so those dates are open again.' },
   { key: 'doorCode', label: 'Door code missing', sub: 'A stay starts within 3 days and has no code yet. 9 AM.' },
   { key: 'headingOut', label: 'Heading-out notes', sub: 'A guest taps “heading out” and leaves a note.' },
+  { key: 'groupVotes', label: 'Group trip votes', sub: 'Someone votes on dates, and when voting closes.' },
   { key: 'requestEmail', label: 'Email me new requests too', sub: 'The full details, with Review & approve. Reply goes to the guest.', email: true },
 ];
 
 const GUEST_KINDS: Kind[] = [
   { key: 'approved', label: 'My stay is approved', sub: 'Tap for your welcome note and trip details.' },
+  { key: 'groupTrips', label: 'Group trip invites', sub: 'You’re invited, a reminder to vote, and when the date is set.' },
   { key: 'answer', label: 'Answers to my questions', sub: 'Pete & Trisha replied to something you asked.' },
   { key: 'tripSoon', label: 'Trip in 3 days', sub: 'Directions, the guide and what to bring. 9 AM.' },
   { key: 'codeReady', label: 'Door code is ready', sub: 'Noon on arrival day, when the code and Wi-Fi unlock.' },

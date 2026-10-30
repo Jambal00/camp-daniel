@@ -64,6 +64,8 @@ export interface GroupTrip {
   note: string;
   hostId: string;
   inviteeIds: string[];
+  /** Names (and numbers, for group texts) of the host and invitees, so everyone on the trip can see who's coming. */
+  members?: Record<string, { name: string; phone: string }>;
   /** 2–4 date choices. While voting, each is held on the calendar (shows "Booked" to guests). */
   options: { start: string; end: string; holdId?: string }[];
   /** YYYY-MM-DD, optional. */
@@ -80,6 +82,8 @@ export interface GroupVote {
   id: string;
   tripId: string;
   personId: string;
+  /** Copied from the trip, so everyone invited can read each other's votes. */
+  inviteeIds?: string[];
   answers: GroupVoteAnswer[];
   comment: string;
   updatedAt: string;

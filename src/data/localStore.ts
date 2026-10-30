@@ -89,7 +89,13 @@ export class LocalStore implements DataStore {
       names: `Held for ${input.title}`, note: '', status: 'blocked', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now,
       bookedByOwner: true, groupTripId: id,
     }));
-    const trip: GroupTrip = { ...input, id, options: input.options.map((o, i) => ({ ...o, holdId: holds[i].id })), status: 'voting', createdAt: now };
+    const members = Object.fromEntries(
+      [input.hostId, ...input.inviteeIds].map((pid) => {
+        const p = this.state.people.find((x) => x.id === pid);
+        return [pid, { name: p?.shortName ?? 'Someone', phone: p?.phone ?? '' }];
+      }),
+    );
+    const trip: GroupTrip = { ...input, id, members, options: input.options.map((o, i) => ({ ...o, holdId: holds[i].id })), status: 'voting', createdAt: now };
     this.commit({ ...this.state, bookings: [...this.state.bookings, ...holds], groupTrips: [...(this.state.groupTrips ?? []), trip] });
     return trip;
   }

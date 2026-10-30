@@ -88,7 +88,7 @@ export function listenForNotificationTaps() {
 // Anything not switched off is on. Choices follow the person, not the phone.
 
 
-export type NotifyKey = 'request' | 'requestEmail' | 'question' | 'cancel' | 'doorCode' | 'headingOut' | 'approved' | 'answer' | 'codeReady' | 'tripSoon';
+export type NotifyKey = 'request' | 'requestEmail' | 'question' | 'cancel' | 'doorCode' | 'headingOut' | 'groupVotes' | 'approved' | 'answer' | 'codeReady' | 'tripSoon' | 'groupTrips';
 export type NotifyPrefs = Partial<Record<NotifyKey, boolean>>;
 
 const LOCAL_PREFS = 'camp-daniel:notify-prefs';

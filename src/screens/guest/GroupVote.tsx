@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import type { GroupVoteAnswer } from '../../data/types';
-import { personById } from '../../lib/cabin';
 import { fmtDay, fmtRange } from '../../lib/dates';
-import { ANSWER_LABEL, invitesFor, votesFor } from '../../lib/groupTrips';
+import { ANSWER_LABEL, invitesFor, member, votesFor } from '../../lib/groupTrips';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -16,7 +15,7 @@ export function GroupInvites() {
   return (
     <>
       {trips.map((t) => {
-        const host = personById(snap.people, t.hostId)?.shortName ?? 'Pete';
+        const host = member(snap, t, t.hostId).name;
         const voted = votesFor(snap, t).some((v) => v.personId === me.id);
         return (
           <a key={t.id} className="card gt-invite" href={href(`/group/${t.id}`)}>
@@ -53,8 +52,8 @@ export function GroupVote({ id }: { id: string }) {
       </main>
     );
   }
-  const host = personById(snap.people, trip.hostId);
-  const name = (pid: string) => (pid === me.id ? 'You' : personById(snap.people, pid)?.shortName ?? 'Someone');
+  const host = { shortName: member(snap, trip, trip.hostId).name };
+  const name = (pid: string) => (pid === me.id ? 'You' : member(snap, trip, pid).name);
   const done = answers.every((a) => a);
   const locked = trip.status === 'locked' && trip.lockedIndex !== undefined ? trip.options[trip.lockedIndex] : null;
   const going = locked && snap.bookings.find((b) => b.id === trip.bookingId)?.crew?.includes(me.id);

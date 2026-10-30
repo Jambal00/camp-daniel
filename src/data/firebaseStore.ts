@@ -23,7 +23,7 @@ import { db } from './firebase';
 import { GUIDE, LOCAL_FAVORITES, LOCAL_FAVORITES_V1 } from './guide';
 import { seedSnapshot } from './seed';
 import type { DataStore } from './store';
-import type { Booking, CabinSettings, GroupTrip, GuestPost, GuestQuestion, PostLike, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
+import type { Booking, CabinSettings, GroupTrip, GroupVote, GroupVoteAnswer, GuestPost, GuestQuestion, PostLike, PostPhoto, Reminder, GuidePhoto, GuideSection, MessageTemplate, Person, Snapshot, Visit } from './types';
 
 /** photoThumbs/{id}: the small copy galleries show. */
 interface ThumbDoc {
@@ -87,6 +87,10 @@ type Parts = {
   people: Person[];
   self: Person | null;
   bookings: Booking[];
+  /** Guests: group-trip stays they're on as crew. */
+  crewBookings: Booking[];
+  groupTrips: GroupTrip[];
+  groupVotes: GroupVote[];
   busy: { id: string; start: string; end: string }[];
   access: Record<string, { doorCode: string; wifiNetwork: string; wifiPassword: string }>;
   guide: GuideSection[];
@@ -112,7 +116,7 @@ function endOf(iso: string) {
 export class FirebaseStore implements DataStore {
   readonly kind = 'firebase' as const;
   private parts: Parts = {
-    people: [], self: null, bookings: [], busy: [], access: {}, guide: [], templates: [], settings: null, wifiPassword: '', visits: {},
+    people: [], self: null, bookings: [], crewBookings: [], groupTrips: [], groupVotes: [], busy: [], access: {}, guide: [], templates: [], settings: null, wifiPassword: '', visits: {},
   };
   private listeners = new Set<(s: Snapshot) => void>();
   private unsubs: Unsubscribe[] = [];
@@ -251,6 +255,8 @@ export class FirebaseStore implements DataStore {
     if (this.isOwner) {
       onList<Person>(collection(db, 'people'), (v) => (this.parts.people = v));
       onList<Booking>(collection(db, 'bookings'), (v) => (this.parts.bookings = v));
+      onList<GroupTrip>(collection(db, 'groupTrips'), (v) => (this.parts.groupTrips = v));
+      onList<GroupVote>(collection(db, 'groupVotes'), (v) => (this.parts.groupVotes = v));
       onList<Visit & { id: string }>(collection(db, 'visits'), (v) => {
         this.parts.visits = Object.fromEntries(v.map(({ id, firstSeen, lastSeen }) => [id, { firstSeen, lastSeen }]));
       });
@@ -284,6 +290,13 @@ export class FirebaseStore implements DataStore {
         (v) => (this.parts.bookings = v),
         () => void this.refreshAccess(),
       );
+      onList<Booking>(
+        query(collection(db, 'bookings'), where('crew', 'array-contains', this.email)),
+        (v) => (this.parts.crewBookings = v),
+        () => void this.refreshAccess(),
+      );
+      onList<GroupTrip>(query(collection(db, 'groupTrips'), where('inviteeIds', 'array-contains', this.email)), (v) => (this.parts.groupTrips = v));
+      onList<GroupVote>(query(collection(db, 'groupVotes'), where('inviteeIds', 'array-contains', this.email)), (v) => (this.parts.groupVotes = v));
       onList<{ id: string; start: string; end: string }>(collection(db, 'busy'), (v) => (this.parts.busy = v));
       // Door codes unlock at noon on arrival day; check again every few minutes.
       this.accessTimer = window.setInterval(() => void this.refreshAccess(), 5 * 60 * 1000);
@@ -293,7 +306,7 @@ export class FirebaseStore implements DataStore {
   /** Guests: try to read the door code / Wi-Fi for stays that are in their window. */
   private async refreshAccess() {
     const now = new Date();
-    for (const b of this.parts.bookings) {
+    for (const b of [...this.parts.bookings, ...this.parts.crewBookings]) {
       if (b.status !== 'approved' || this.parts.access[b.id]) continue;
       const from = noonOn(b.start).toDate();
       const until = endOf(b.end).toDate();
@@ -315,19 +328,22 @@ export class FirebaseStore implements DataStore {
     const settings: CabinSettings = { ...(p.settings ?? seedSnapshot().settings), wifiPassword: p.wifiPassword };
     const withAccess = (b: Booking): Booking => ({ ...b, doorCode: p.access[b.id]?.doorCode ?? '' });
     if (this.isOwner) {
-      return { people: p.people, visits: p.visits, bookings: p.bookings.map(withAccess), guide: p.guide, templates: p.templates, settings };
+      return { people: p.people, visits: p.visits, bookings: p.bookings.map(withAccess), groupTrips: p.groupTrips, groupVotes: p.groupVotes, guide: p.guide, templates: p.templates, settings };
     }
     // Guests: their own stays, plus other stays as anonymous "booked" ranges.
-    const mine = new Set(p.bookings.map((b) => b.id));
+    const own = [...p.bookings, ...p.crewBookings.filter((c) => !p.bookings.some((b) => b.id === c.id))];
+    const mine = new Set(own.map((b) => b.id));
     const others: Booking[] = p.busy
       .filter((x) => !mine.has(x.id))
       .map((x) => ({ id: x.id, personId: OTHER, start: x.start, end: x.end, partySize: 0, names: '', note: '', status: 'approved', welcomeNote: '', doorCode: '', createdAt: '' }));
-    const current = p.bookings.find((b) => p.access[b.id]);
+    const current = own.find((b) => p.access[b.id]);
     const a = current ? p.access[current.id] : undefined;
     const people = [...p.people, ...(p.self && !p.people.some((x) => x.id === p.self!.id) ? [p.self] : [])];
     return {
       people,
-      bookings: [...p.bookings.map(withAccess), ...others],
+      bookings: [...own.map(withAccess), ...others],
+      groupTrips: p.groupTrips,
+      groupVotes: p.groupVotes,
       guide: p.guide,
       templates: p.templates,
       settings: { ...settings, wifiNetwork: a?.wifiNetwork || settings.wifiNetwork, wifiPassword: a?.wifiPassword ?? '' },
@@ -362,6 +378,7 @@ export class FirebaseStore implements DataStore {
       const s = this.parts.settings;
       await setDoc(doc(db, 'access', b.id), {
         email: b.personId,
+        crew: b.crew ?? [],
         doorCode: b.doorCode ?? '',
         wifiNetwork: s?.wifiNetwork ?? '',
         wifiPassword: this.parts.wifiPassword,
@@ -383,21 +400,70 @@ export class FirebaseStore implements DataStore {
     return b;
   }
 
-  // Group trips: wired to Firestore once the design is approved (sample-data demo only for now).
-  async createGroupTrip(): Promise<GroupTrip> {
-    throw new Error('Group trips are coming soon.');
+  // ---------- group trips (owners create, lock and call off; invitees vote) ----------
+
+  async createGroupTrip(input: Parameters<DataStore['createGroupTrip']>[0]) {
+    const ref = doc(collection(db, 'groupTrips'));
+    const now = new Date().toISOString();
+    // Hold each date choice so nobody else can request it while people vote.
+    const holds: Booking[] = [];
+    for (const o of input.options) {
+      holds.push(
+        await this.createBooking({
+          personId: input.hostId, start: o.start, end: o.end, partySize: input.inviteeIds.length + 1, names: `Held for ${input.title}`, note: '',
+          status: 'blocked', welcomeNote: '', doorCode: '', decidedAt: now, bookedByOwner: true, groupTripId: ref.id,
+        }),
+      );
+    }
+    const members = Object.fromEntries(
+      [input.hostId, ...input.inviteeIds].map((pid) => {
+        const p = this.parts.people.find((x) => x.id === pid);
+        return [pid, { name: p?.shortName ?? 'Someone', phone: p?.phone ?? '' }];
+      }),
+    );
+    const trip: GroupTrip = {
+      ...input, id: ref.id, members, options: input.options.map((o, i) => ({ ...o, holdId: holds[i].id })), status: 'voting', createdAt: now,
+    };
+    const { id: _id, ...stored } = trip;
+    void _id;
+    await setDoc(ref, stored);
+    return trip;
   }
-  async updateGroupTrip() {
-    throw new Error('Group trips are coming soon.');
+
+  async updateGroupTrip(id: string, patch: Parameters<DataStore['updateGroupTrip']>[1]) {
+    await updateDoc(doc(db, 'groupTrips', id), patch as DocumentData);
   }
-  async lockGroupTrip(): Promise<Booking> {
-    throw new Error('Group trips are coming soon.');
+
+  private async dropHold(bookingId: string) {
+    await deleteDoc(doc(db, 'busy', bookingId)).catch(() => undefined);
+    await deleteDoc(doc(db, 'bookings', bookingId)).catch(() => undefined);
   }
-  async cancelGroupTrip() {
-    throw new Error('Group trips are coming soon.');
+
+  async lockGroupTrip(id: string, index: number, crew: string[]) {
+    const trip = this.parts.groupTrips.find((t) => t.id === id);
+    if (!trip) throw new Error('That group trip isn’t here anymore.');
+    const keep = trip.options[index];
+    if (!keep.holdId) throw new Error('That date hold is gone.');
+    const stay = await this.updateBooking(keep.holdId, {
+      status: 'approved', names: trip.title, partySize: crew.length + 1, crew, welcomeNote: trip.note, decidedAt: new Date().toISOString(),
+    });
+    for (const o of trip.options) if (o.holdId && o.holdId !== keep.holdId) await this.dropHold(o.holdId);
+    await updateDoc(doc(db, 'groupTrips', id), { status: 'locked', lockedIndex: index, bookingId: keep.holdId });
+    return stay;
   }
-  async voteGroupTrip() {
-    throw new Error('Group trips are coming soon.');
+
+  async cancelGroupTrip(id: string) {
+    const trip = this.parts.groupTrips.find((t) => t.id === id);
+    for (const o of trip?.options ?? []) if (o.holdId) await this.dropHold(o.holdId);
+    await updateDoc(doc(db, 'groupTrips', id), { status: 'cancelled' });
+  }
+
+  async voteGroupTrip(tripId: string, personId: string, answers: GroupVoteAnswer[], comment: string) {
+    const trip = this.parts.groupTrips.find((t) => t.id === tripId);
+    if (!trip) throw new Error('That invite isn’t here anymore.');
+    await setDoc(doc(db, 'groupVotes', `${tripId}__${personId}`), {
+      tripId, personId, inviteeIds: trip.inviteeIds, answers, comment, updatedAt: new Date().toISOString(),
+    });
   }
 
   async updateBooking(id: string, patch: Partial<Booking>) {

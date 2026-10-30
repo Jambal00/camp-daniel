@@ -1,5 +1,13 @@
 import type { GroupTrip, GroupVote, GroupVoteAnswer, Snapshot } from '../data/types';
 
+/** A trip member's first name and number: from People when visible (owners), else the trip's own list. */
+export function member(snap: Snapshot, trip: GroupTrip | undefined, id: string): { name: string; phone: string } {
+  const p = snap.people.find((x) => x.id === id);
+  if (p) return { name: p.shortName, phone: p.phone };
+  return trip?.members?.[id] ?? { name: 'Someone', phone: '' };
+}
+
+
 export function votesFor(snap: Snapshot, trip: GroupTrip): GroupVote[] {
   return (snap.groupVotes ?? []).filter((v) => v.tripId === trip.id && trip.inviteeIds.includes(v.personId));
 }

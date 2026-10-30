@@ -65,9 +65,11 @@ export function GroupTripNew() {
     setCustom({ start: '', end: '' });
   };
   const addPerson = async () => {
-    if (!newPerson.name.trim()) return;
+    if (!newPerson.name.trim() || !newPerson.email.includes('@')) return;
     const name = newPerson.name.trim();
-    const p = await store.addPerson({ name, shortName: name.split(/\s+/)[0], email: newPerson.email.trim().toLowerCase(), phone: newPerson.phone.trim(), tier: 'friends' });
+    const email = newPerson.email.trim().toLowerCase();
+    if (snap.people.some((x) => x.email === email || x.id === email)) return toast('That email is already in People. Check them off above.');
+    const p = await store.addPerson({ name, shortName: name.split(/\s+/)[0], email, phone: newPerson.phone.trim(), tier: 'friends' });
     setInvitees([...invitees, p.id]);
     setNewPerson({ name: '', phone: '', email: '' });
     setAdding(false);
@@ -114,10 +116,11 @@ export function GroupTripNew() {
           <div className="card">
             <input className="input" placeholder="Name" value={newPerson.name} onChange={(e) => setNewPerson({ ...newPerson, name: e.target.value })} aria-label="Name" />
             <input className="input" placeholder="Mobile number" inputMode="tel" value={newPerson.phone} onChange={(e) => setNewPerson({ ...newPerson, phone: e.target.value })} aria-label="Mobile number" />
-            <input className="input" placeholder="Email (for sign-in)" inputMode="email" value={newPerson.email} onChange={(e) => setNewPerson({ ...newPerson, email: e.target.value })} aria-label="Email" />
+            <input className="input" placeholder="Email (they sign in with it)" inputMode="email" value={newPerson.email} onChange={(e) => setNewPerson({ ...newPerson, email: e.target.value })} aria-label="Email" />
+            <div className="small muted">They'll get the invite by email, and sign in with that address to vote.</div>
             <div className="grid-2">
               <button className="btn outline" onClick={() => setAdding(false)}>Cancel</button>
-              <button className="btn" onClick={addPerson} disabled={!newPerson.name.trim()}>Add & invite</button>
+              <button className="btn" onClick={addPerson} disabled={!newPerson.name.trim() || !newPerson.email.includes('@')}>Add & invite</button>
             </div>
           </div>
         ) : (
