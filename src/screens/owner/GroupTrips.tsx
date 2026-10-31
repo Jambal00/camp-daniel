@@ -4,7 +4,16 @@ import { store } from '../../data';
 
 import { groupSmsHref, openWeekends, personById, rangeAvailable, tentativeOverlaps } from '../../lib/cabin';
 import { addDays, fmtDay, fmtRange, today } from '../../lib/dates';
-import { ANSWER_LABEL, bestOption, optionBookedBy, optionRequests, tally, votesFor } from '../../lib/groupTrips';
+import type { GroupTrip } from '../../data/types';
+import { ANSWER_LABEL, bestOption, member, optionBookedBy, optionRequests, tally, votesFor } from '../../lib/groupTrips';
+
+const STATUS: Record<GroupTrip['status'], [string, string]> = {
+  proposed: ['Needs an OK', 'pick'],
+  voting: ['Voting', 'orange'],
+  locked: ['Locked in', 'blue'],
+  cancelled: ['Called off', 'grey'],
+  declined: ['Not this time', 'grey'],
+};
 import { go, href } from '../../lib/router';
 import { useSession } from '../../lib/session';
 
@@ -13,22 +22,30 @@ const MAX_OPTIONS = 4;
 /** Owner home: group trips that are still collecting votes, plus a way to start one. */
 export function GroupTripsSection() {
   const { snap } = useSession();
-  const voting = (snap.groupTrips ?? []).filter((t) => t.status === 'voting');
+  const voting = (snap.groupTrips ?? [])
+    .filter((t) => t.status === 'voting' || t.status === 'proposed')
+    .sort((a, b) => (a.status === 'proposed' ? 0 : 1) - (b.status === 'proposed' ? 0 : 1));
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div className="section-label"><h2 className="title-sm" style={{ fontSize: 20 }}>Group trips</h2></div>
       {voting.map((t) => {
         const voted = votesFor(snap, t).length;
+        const host = personById(snap.people, t.hostId);
+        const byKid = host && host.tier !== 'owner';
         return (
           <a key={t.id} className="card album-link" href={href(`/owner/group/${t.id}`)}>
             <span className="ico" aria-hidden="true">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></svg>
             </span>
             <span className="meta" style={{ flex: 1 }}>
-              <span className="strong">{t.title}</span>
-              <span className="small muted">{voted} of {t.inviteeIds.length} voted{t.voteBy ? ` · vote by ${fmtDay(t.voteBy)}` : ''}</span>
+              <span className="strong">{byKid ? `${host.shortName}'s ${t.title}` : t.title}</span>
+              <span className="small muted">
+                {t.status === 'proposed'
+                  ? `${host?.shortName ?? 'Someone'} wants to invite ${t.inviteeIds.length} · ${t.options.length} date choices`
+                  : `${voted} of ${t.inviteeIds.length} voted${t.voteBy ? ` · vote by ${fmtDay(t.voteBy)}` : ''}`}
+              </span>
             </span>
-            <span className="chip orange">Voting</span>
+            {t.status === 'proposed' ? <span className="chip pick">Needs your OK</span> : <span className="chip orange">Voting</span>}
           </a>
         );
       })}
@@ -39,8 +56,11 @@ export function GroupTripsSection() {
 
 /** Owner: name it, pick who's invited and 2–4 date choices, send. */
 export function GroupTripNew() {
-  const { snap, me } = useSession();
-  const guests = snap.people.filter((p) => p.tier !== 'owner');
+  const { snap, me, isOwner, previewing } = useSession();
+  // Owners pick from everyone; the kids from the friends they've added (they can't see the whole list).
+  const guests = snap.people.filter((p) => p.tier !== 'owner' && p.id !== me.id && (isOwner || p.addedBy === me.id));
+  const home = isOwner ? '/owner' : '/';
+  const canPlan = isOwner || me.tier === 'kids';
   // Open weekends that aren't already a choice in another vote.
   const weekends = useMemo(() => openWeekends(snap.bookings, 14).filter((f) => !tentativeOverlaps(f, addDays(f, 2), snap.bookings).length).slice(0, 10), [snap.bookings]);
   const [title, setTitle] = useState('');
@@ -70,7 +90,8 @@ export function GroupTripNew() {
     const name = newPerson.name.trim();
     const email = newPerson.email.trim().toLowerCase();
     if (snap.people.some((x) => x.email === email || x.id === email)) return toast('That email is already in People. Check them off above.');
-    const p = await store.addPerson({ name, shortName: name.split(/\s+/)[0], email, phone: newPerson.phone.trim(), tier: 'friends' });
+    if (previewing) return toast('Guest preview: nothing was changed.');
+    const p = await store.addPerson({ name, shortName: name.split(/\s+/)[0], email, phone: newPerson.phone.trim(), tier: 'friends', ...(isOwner ? {} : { addedBy: me.id }) });
     setInvitees([...invitees, p.id]);
     setNewPerson({ name: '', phone: '', email: '' });
     setAdding(false);
@@ -80,11 +101,12 @@ export function GroupTripNew() {
   const ready = title.trim() && invitees.length > 0 && options.length >= 2;
   const send = async () => {
     if (!ready) return;
+    if (previewing) return toast('Guest preview: nothing was sent.');
     setBusy(true);
     try {
       const t = await store.createGroupTrip({ title: title.trim(), note: note.trim(), hostId: me.id, inviteeIds: invitees, options, voteBy: voteBy || undefined });
-      toast('Invites sent. The dates are held while everyone votes.');
-      go(`/owner/group/${t.id}`);
+      toast(isOwner ? 'Invites sent. The dates show as tentative while everyone votes.' : 'Sent to Pete & Trisha. Invites go out once they OK it.');
+      go(isOwner ? `/owner/group/${t.id}` : `/group/${t.id}`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Couldn’t create it. Try again.');
     } finally {
@@ -92,11 +114,24 @@ export function GroupTripNew() {
     }
   };
 
+  if (!canPlan) {
+    return (
+      <main className="screen">
+        <a className="back" href={href('/')}>‹ Calendar</a>
+        <div className="alert">Group trips are planned by Pete &amp; Trisha for now.</div>
+      </main>
+    );
+  }
+
   return (
     <main className="screen">
-      <a className="back" href={href('/owner')}>‹ Requests</a>
+      <a className="back" href={href(home)}>‹ {isOwner ? 'Requests' : 'Calendar'}</a>
       <h1 className="title">Plan a group trip</h1>
-      <p className="muted" style={{ margin: 0 }}>Invite a few people, offer a few dates, and let them vote. You pick the winner.</p>
+      <p className="muted" style={{ margin: 0 }}>
+        {isOwner
+          ? 'Invite a few people, offer a few dates, and let them vote. You pick the winner.'
+          : 'Invite your friends, offer a few weekends, and let them vote. Pete & Trisha OK the plan first, then the invites go out and you pick the winner.'}
+      </p>
 
       <div className="field">
         <label htmlFor="gt-title">Name it</label>
@@ -106,6 +141,7 @@ export function GroupTripNew() {
       <div className="field">
         <div className="label">Who's invited</div>
         <div className="card tight">
+          {guests.length === 0 && <div className="list-row small muted">{isOwner ? 'Nobody in People yet.' : 'Add your friends below. They get the invite once Pete & Trisha OK the plan.'}</div>}
           {guests.map((p) => (
             <label key={p.id} className="list-row check-row">
               <input type="checkbox" checked={invitees.includes(p.id)} onChange={(e) => setInvitees(e.target.checked ? [...invitees, p.id] : invitees.filter((x) => x !== p.id))} />
@@ -118,7 +154,7 @@ export function GroupTripNew() {
             <input className="input" placeholder="Name" value={newPerson.name} onChange={(e) => setNewPerson({ ...newPerson, name: e.target.value })} aria-label="Name" />
             <input className="input" placeholder="Mobile number" inputMode="tel" value={newPerson.phone} onChange={(e) => setNewPerson({ ...newPerson, phone: e.target.value })} aria-label="Mobile number" />
             <input className="input" placeholder="Email (they sign in with it)" inputMode="email" value={newPerson.email} onChange={(e) => setNewPerson({ ...newPerson, email: e.target.value })} aria-label="Email" />
-            <div className="small muted">They'll get the invite by email, and sign in with that address to vote.</div>
+            <div className="small muted">They'll get the invite by email, and sign in with that address to vote.{isOwner ? '' : ' Pete & Trisha will see you added them.'}</div>
             <div className="grid-2">
               <button className="btn outline" onClick={() => setAdding(false)}>Cancel</button>
               <button className="btn" onClick={addPerson} disabled={!newPerson.name.trim() || !newPerson.email.includes('@')}>Add & invite</button>
@@ -166,7 +202,7 @@ export function GroupTripNew() {
         <div className="small muted">Shows on the invite, and becomes the welcome note once you lock in a date.</div>
       </div>
 
-      <button className="btn" onClick={send} disabled={!ready || busy}>{busy ? 'Sending…' : `Send invites${invitees.length ? ` to ${invitees.length}` : ''}`}</button>
+      <button className="btn" onClick={send} disabled={!ready || busy}>{busy ? 'Sending…' : isOwner ? `Send invites${invitees.length ? ` to ${invitees.length}` : ''}` : 'Send to Pete & Trisha for an OK'}</button>
       {!ready && <div className="small muted" style={{ textAlign: 'center' }}>Add a name, at least one person and 2 date choices.</div>}
     </main>
   );
@@ -174,14 +210,17 @@ export function GroupTripNew() {
 
 /** Owner: who can make which date, then lock one in. */
 export function GroupTripView({ id }: { id: string }) {
-  const { snap } = useSession();
+  const { snap, isOwner, previewing } = useSession();
   const trip = (snap.groupTrips ?? []).find((t) => t.id === id);
   const [confirm, setConfirm] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const home = isOwner ? '/owner' : '/';
+  const back = <a className="back" href={href(home)}>‹ {isOwner ? 'Requests' : 'Calendar'}</a>;
   if (!trip) {
     return (
       <main className="screen">
-        <a className="back" href={href('/owner')}>‹ Requests</a>
+        {back}
         <div className="alert">That group trip isn't here anymore.</div>
       </main>
     );
@@ -189,44 +228,98 @@ export function GroupTripView({ id }: { id: string }) {
   const votes = votesFor(snap, trip);
   const t = tally(trip, votes);
   const best = bestOption(t);
-  const name = (pid: string) => personById(snap.people, pid)?.shortName ?? 'Someone';
+  const name = (pid: string) => member(snap, trip, pid).name;
+  const host = personById(snap.people, trip.hostId);
+  const kidHost = !!host && host.tier !== 'owner';
+  const blocked = () => {
+    if (previewing) toast('Guest preview: nothing was changed.');
+    return previewing;
+  };
   const notVoted = trip.inviteeIds.filter((pid) => !votes.some((v) => v.personId === pid));
-  const phones = (ids: string[]) => ids.map((pid) => personById(snap.people, pid)?.phone ?? '').filter(Boolean);
+  const phones = (ids: string[]) => ids.map((pid) => member(snap, trip, pid).phone).filter(Boolean);
 
   const lock = async (index: number) => {
+    if (blocked()) return;
     const crew = [...t[index].yes, ...t[index].maybe];
     try {
       await store.lockGroupTrip(trip.id, index, crew);
-      toast('Locked in! Everyone going gets the trip on My trip.');
+      toast(isOwner ? 'Locked in! Everyone going gets the trip on My trip.' : 'Locked in! Everyone going gets the trip on My trip, and Pete & Trisha get a heads-up.');
       setConfirm(null);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Couldn’t lock it in.');
     }
   };
   const callOff = async () => {
+    if (blocked()) return;
     await store.cancelGroupTrip(trip.id);
-    toast('Called off. The held dates are open again.');
-    go('/owner');
+    toast('Called off. The dates are open again.');
+    go(home);
+  };
+  const approve = async () => {
+    setBusy(true);
+    try {
+      await store.approveGroupTrip(trip.id);
+      toast(`OK'd. Invites are on their way, and the dates show as tentative.`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Couldn’t OK it. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const decline = async () => {
+    setBusy(true);
+    try {
+      await store.declineGroupTrip(trip.id);
+      toast(`Turned down. ${host?.shortName ?? 'They'} will get a note.`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <main className="screen">
-      <a className="back" href={href('/owner')}>‹ Requests</a>
+      {back}
       <header style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {kidHost && isOwner && <div className="eyebrow">{host.shortName}'s group trip</div>}
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 className="title" style={{ margin: 0 }}>{trip.title}</h1>
-          <span className={`chip ${trip.status === 'voting' ? 'orange' : trip.status === 'locked' ? 'blue' : 'grey'}`}>{trip.status === 'voting' ? 'Voting' : trip.status === 'locked' ? 'Locked in' : 'Called off'}</span>
+          <span className={`chip ${STATUS[trip.status][1]}`}>{STATUS[trip.status][0]}</span>
         </div>
         <p className="muted" style={{ margin: 0 }}>
-          {votes.length} of {trip.inviteeIds.length} voted{trip.voteBy && trip.status === 'voting' ? ` · vote by ${fmtDay(trip.voteBy)}` : ''}
+          {trip.status === 'proposed'
+            ? `Inviting ${trip.inviteeIds.map(name).join(', ')}`
+            : `${votes.length} of ${trip.inviteeIds.length} voted${trip.voteBy && trip.status === 'voting' ? ` · vote by ${fmtDay(trip.voteBy)}` : ''}`}
         </p>
       </header>
+
+      {trip.status === 'proposed' &&
+        (isOwner ? (
+          <section className="card gt-approve">
+            <div className="strong">{host?.shortName ?? 'Someone'} wants to plan this</div>
+            <div className="small">
+              Invites go to <b>{trip.inviteeIds.map(name).join(', ')}</b>, with these weekends to vote on. Once you OK it, the dates show as tentative and the invites go out.
+              {trip.inviteeIds.some((pid) => personById(snap.people, pid)?.addedBy === trip.hostId) && (
+                <> New to People (added by {host?.shortName}): {trip.inviteeIds.filter((pid) => personById(snap.people, pid)?.addedBy === trip.hostId).map(name).join(', ')}.</>
+              )}
+            </div>
+            {trip.note && <div className="small muted">“{trip.note}”</div>}
+            <div className="grid-2">
+              <button className="btn outline" onClick={decline} disabled={busy}>Not this time</button>
+              <button className="btn" onClick={approve} disabled={busy}>OK, send invites</button>
+            </div>
+          </section>
+        ) : (
+          <div className="callout">Waiting for Pete &amp; Trisha to OK the plan. Invites go out as soon as they do, and you'll get a notification.</div>
+        ))}
+      {trip.status === 'declined' && <div className="callout">{isOwner ? 'You turned this one down.' : 'Pete & Trisha said not this time. Talk with them about other dates.'}</div>}
+      {trip.lockRequest && trip.status === 'voting' && <div className="callout">Locking in {fmtRange(trip.options[trip.lockRequest.index].start, trip.options[trip.lockRequest.index].end)}…</div>}
 
       {trip.status === 'locked' && trip.lockedIndex !== undefined && (
         <div className="card">
           <div className="strong">Going: {fmtRange(trip.options[trip.lockedIndex].start, trip.options[trip.lockedIndex].end)}</div>
           <div className="small muted">{[...t[trip.lockedIndex].yes, ...t[trip.lockedIndex].maybe].map(name).join(', ') || 'Just you so far'}</div>
-          {trip.bookingId && <a className="btn outline" href={href(`/owner/approve/${trip.bookingId}`)}>Add the door code</a>}
+          {trip.bookingId && isOwner && <a className="btn outline" href={href(`/owner/approve/${trip.bookingId}`)}>Add the door code</a>}
+          {!isOwner && <a className="btn outline" href={href('/trip')}>Go to My trip</a>}
         </div>
       )}
 
@@ -243,20 +336,20 @@ export function GroupTripView({ id }: { id: string }) {
               {isBest && <span className="chip pick">Best so far</span>}
               {isLocked && <span className="chip blue">Locked in</span>}
             </div>
-            <div className="gt-bars" aria-hidden="true">
+            {trip.status !== 'proposed' && <div className="gt-bars" aria-hidden="true">
               <span className="yes" style={{ flex: r.yes.length }} />
               <span className="maybe" style={{ flex: r.maybe.length }} />
               <span className="no" style={{ flex: r.no.length }} />
               <span className="none" style={{ flex: trip.inviteeIds.length - r.yes.length - r.maybe.length - r.no.length }} />
-            </div>
+            </div>}
             {(['yes', 'maybe', 'no'] as const).map((a) =>
               r[a].length ? (
                 <div key={a} className="small"><span className={`gt-dot ${a}`} /> <b>{ANSWER_LABEL[a]}:</b> {r[a].map(name).join(', ')}</div>
               ) : null,
             )}
             {bookedBy && <div className="small strong" style={{ color: 'var(--red-ink)' }}>Now booked ({bookedBy.status === 'blocked' ? 'blocked for us' : personById(snap.people, bookedBy.personId)?.shortName ?? 'a guest'}), so it can't be locked in.</div>}
-            {asks.length > 0 && <div className="small">Also requested by {asks.map((a) => personById(snap.people, a.personId)?.shortName ?? 'a guest').join(', ')}. <a href={href(`/owner/approve/${asks[0].id}`)}>Review</a></div>}
-            {trip.status === 'voting' && !bookedBy &&
+            {asks.length > 0 && isOwner && <div className="small">Also requested by {asks.map((a) => personById(snap.people, a.personId)?.shortName ?? 'a guest').join(', ')}. <a href={href(`/owner/approve/${asks[0].id}`)}>Review</a></div>}
+            {trip.status === 'voting' && !bookedBy && !trip.lockRequest &&
               (confirm === i ? (
                 <div className="card inset">
                   <div className="small">Lock in <b>{fmtRange(o.start, o.end)}</b>? {r.yes.length + r.maybe.length ? `${[...r.yes, ...r.maybe].map(name).join(', ')} get the trip on My trip.` : 'Nobody has said yes yet.'} The other dates open back up.</div>
@@ -290,11 +383,11 @@ export function GroupTripView({ id }: { id: string }) {
         </section>
       )}
 
-      {phones(trip.inviteeIds).length > 0 && (
+      {(trip.status === 'voting' || trip.status === 'locked') && phones(trip.inviteeIds).length > 0 && (
         <a className="btn outline" href={groupSmsHref(phones(trip.inviteeIds), `${trip.title}: `)}>Text the group</a>
       )}
 
-      {trip.status === 'voting' &&
+      {(trip.status === 'voting' || (trip.status === 'proposed' && !isOwner)) &&
         (cancelling ? (
           <div className="card">
             <div className="small strong">Call off {trip.title}? The held dates open back up.</div>
@@ -304,7 +397,7 @@ export function GroupTripView({ id }: { id: string }) {
             </div>
           </div>
         ) : (
-          <button className="link-btn" style={{ color: 'var(--red-ink)', alignSelf: 'center' }} onClick={() => setCancelling(true)}>Call off this trip</button>
+          <button className="link-btn" style={{ color: 'var(--red-ink)', alignSelf: 'center' }} onClick={() => setCancelling(true)}>{trip.status === 'proposed' ? 'Withdraw this plan' : 'Call off this trip'}</button>
         ))}
     </main>
   );

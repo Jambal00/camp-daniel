@@ -44,7 +44,11 @@ export function Alerts() {
   const { state, busy, support, turnOn, turnOff, test } = usePush();
   const [prefs, setPrefs] = useState<NotifyPrefs | null>(null);
   useEffect(() => watchNotifyPrefs(me.id, setPrefs), [me.id]);
-  const kinds = isOwner ? OWNER_KINDS : GUEST_KINDS;
+  const kinds = isOwner
+    ? OWNER_KINDS
+    : me.tier === 'kids'
+      ? [...GUEST_KINDS, { key: 'groupVotes' as const, label: 'Votes on my group trips', sub: 'A friend votes on dates for a trip you’re planning.' }]
+      : GUEST_KINDS;
 
   const flip = async (key: NotifyKey, on: boolean) => {
     if (previewing) {

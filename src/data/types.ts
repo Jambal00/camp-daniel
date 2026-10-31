@@ -19,6 +19,8 @@ export interface Person {
   email: string;
   phone: string;
   tier: Tier;
+  /** Set when one of the kids added this person (for a group trip). */
+  addedBy?: string;
 }
 
 /** 'tentative' = a date choice held for a group trip vote: shown on the calendar, but still requestable. */
@@ -71,7 +73,10 @@ export interface GroupTrip {
   options: { start: string; end: string; holdId?: string }[];
   /** YYYY-MM-DD, optional. */
   voteBy?: string;
-  status: 'voting' | 'locked' | 'cancelled';
+  /** proposed = a kid's plan waiting for Pete & Trisha's OK; declined = they said not this time. */
+  status: 'proposed' | 'voting' | 'locked' | 'cancelled' | 'declined';
+  /** A kid host picked the winner; the server books it (they can't write stays themselves). */
+  lockRequest?: { index: number; crew: string[] };
   lockedIndex?: number;
   /** The stay created when it's locked in. */
   bookingId?: string;
@@ -83,8 +88,9 @@ export interface GroupVote {
   id: string;
   tripId: string;
   personId: string;
-  /** Copied from the trip, so everyone invited can read each other's votes. */
+  /** Copied from the trip, so everyone invited (and the host) can read the votes. */
   inviteeIds?: string[];
+  hostId?: string;
   answers: GroupVoteAnswer[];
   comment: string;
   updatedAt: string;

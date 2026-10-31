@@ -91,6 +91,10 @@ type Parts = {
   crewBookings: Booking[];
   groupTrips: GroupTrip[];
   groupVotes: GroupVote[];
+  /** Kids: trips they host, votes on them, and the friends they've added. */
+  hostTrips: GroupTrip[];
+  hostVotes: GroupVote[];
+  added: Person[];
   busy: { id: string; start: string; end: string; tentative?: boolean }[];
   access: Record<string, { doorCode: string; wifiNetwork: string; wifiPassword: string }>;
   guide: GuideSection[];
@@ -116,7 +120,7 @@ function endOf(iso: string) {
 export class FirebaseStore implements DataStore {
   readonly kind = 'firebase' as const;
   private parts: Parts = {
-    people: [], self: null, bookings: [], crewBookings: [], groupTrips: [], groupVotes: [], busy: [], access: {}, guide: [], templates: [], settings: null, wifiPassword: '', visits: {},
+    people: [], self: null, bookings: [], crewBookings: [], groupTrips: [], groupVotes: [], hostTrips: [], hostVotes: [], added: [], busy: [], access: {}, guide: [], templates: [], settings: null, wifiPassword: '', visits: {},
   };
   private listeners = new Set<(s: Snapshot) => void>();
   private unsubs: Unsubscribe[] = [];
@@ -297,6 +301,10 @@ export class FirebaseStore implements DataStore {
       );
       onList<GroupTrip>(query(collection(db, 'groupTrips'), where('inviteeIds', 'array-contains', this.email)), (v) => (this.parts.groupTrips = v));
       onList<GroupVote>(query(collection(db, 'groupVotes'), where('inviteeIds', 'array-contains', this.email)), (v) => (this.parts.groupVotes = v));
+      // The kids can run their own group trips (if the rules allow it; harmless otherwise).
+      onList<GroupTrip>(query(collection(db, 'groupTrips'), where('hostId', '==', this.email)), (v) => (this.parts.hostTrips = v));
+      onList<GroupVote>(query(collection(db, 'groupVotes'), where('hostId', '==', this.email)), (v) => (this.parts.hostVotes = v));
+      onList<Person>(query(collection(db, 'people'), where('addedBy', '==', this.email)), (v) => (this.parts.added = v));
       onList<{ id: string; start: string; end: string; tentative?: boolean }>(collection(db, 'busy'), (v) => (this.parts.busy = v));
       // Door codes unlock at noon on arrival day; check again every few minutes.
       this.accessTimer = window.setInterval(() => void this.refreshAccess(), 5 * 60 * 1000);
@@ -338,12 +346,13 @@ export class FirebaseStore implements DataStore {
       .map((x) => ({ id: x.id, personId: OTHER, start: x.start, end: x.end, partySize: 0, names: '', note: '', status: x.tentative ? 'tentative' : 'approved', welcomeNote: '', doorCode: '', createdAt: '' }));
     const current = own.find((b) => p.access[b.id]);
     const a = current ? p.access[current.id] : undefined;
-    const people = [...p.people, ...(p.self && !p.people.some((x) => x.id === p.self!.id) ? [p.self] : [])];
+    const people = [...p.people, ...(p.self && !p.people.some((x) => x.id === p.self!.id) ? [p.self] : []), ...p.added.filter((a) => !p.people.some((x) => x.id === a.id))];
+    const byId = <T extends { id: string }>(a: T[], b: T[]) => [...a, ...b.filter((x) => !a.some((y) => y.id === x.id))];
     return {
       people,
       bookings: [...own.map(withAccess), ...others],
-      groupTrips: p.groupTrips,
-      groupVotes: p.groupVotes,
+      groupTrips: byId(p.groupTrips, p.hostTrips),
+      groupVotes: byId(p.groupVotes, p.hostVotes),
       guide: p.guide,
       templates: p.templates,
       settings: { ...settings, wifiNetwork: a?.wifiNetwork || settings.wifiNetwork, wifiPassword: a?.wifiPassword ?? '' },
@@ -406,9 +415,9 @@ export class FirebaseStore implements DataStore {
   async createGroupTrip(input: Parameters<DataStore['createGroupTrip']>[0]) {
     const ref = doc(collection(db, 'groupTrips'));
     const now = new Date().toISOString();
-    // Hold each date choice so nobody else can request it while people vote.
+    // Kids' plans wait for an owner's OK: no date holds yet.
     const holds: Booking[] = [];
-    for (const o of input.options) {
+    for (const o of this.isOwner ? input.options : []) {
       holds.push(
         await this.createBooking({
           personId: input.hostId, start: o.start, end: o.end, partySize: input.inviteeIds.length + 1, names: `Held for ${input.title}`, note: '',
@@ -423,7 +432,9 @@ export class FirebaseStore implements DataStore {
       }),
     );
     const trip: GroupTrip = {
-      ...input, id: ref.id, members, options: input.options.map((o, i) => ({ ...o, holdId: holds[i].id })), status: 'voting', createdAt: now,
+      ...input, id: ref.id, members, createdAt: now,
+      options: input.options.map((o, i) => (holds[i] ? { ...o, holdId: holds[i].id } : { ...o })),
+      status: this.isOwner ? 'voting' : 'proposed',
     };
     const { id: _id, ...stored } = trip;
     void _id;
@@ -440,7 +451,31 @@ export class FirebaseStore implements DataStore {
     await deleteDoc(doc(db, 'bookings', bookingId)).catch(() => undefined);
   }
 
+  async approveGroupTrip(id: string) {
+    const trip = this.parts.groupTrips.find((t) => t.id === id);
+    if (!trip || trip.status !== 'proposed') throw new Error('That plan isn’t waiting for an OK anymore.');
+    const now = new Date().toISOString();
+    const options = [];
+    for (const o of trip.options) {
+      const h = await this.createBooking({
+        personId: trip.hostId, start: o.start, end: o.end, partySize: trip.inviteeIds.length + 1, names: `Held for ${trip.title}`, note: '',
+        status: 'tentative', welcomeNote: '', doorCode: '', decidedAt: now, bookedByOwner: true, groupTripId: trip.id,
+      });
+      options.push({ ...o, holdId: h.id });
+    }
+    await updateDoc(doc(db, 'groupTrips', id), { options, status: 'voting' });
+  }
+
+  async declineGroupTrip(id: string) {
+    await updateDoc(doc(db, 'groupTrips', id), { status: 'declined' });
+  }
+
   async lockGroupTrip(id: string, index: number, crew: string[]) {
+    if (!this.isOwner) {
+      // A kid host: the server books it (guests can't write stays or door-code records).
+      await updateDoc(doc(db, 'groupTrips', id), { lockRequest: { index, crew } });
+      return this.parts.bookings[0] as Booking;
+    }
     const trip = this.parts.groupTrips.find((t) => t.id === id);
     if (!trip) throw new Error('That group trip isn’t here anymore.');
     const keep = trip.options[index];
@@ -454,6 +489,10 @@ export class FirebaseStore implements DataStore {
   }
 
   async cancelGroupTrip(id: string) {
+    if (!this.isOwner) {
+      await updateDoc(doc(db, 'groupTrips', id), { status: 'cancelled' });
+      return;
+    }
     const trip = this.parts.groupTrips.find((t) => t.id === id);
     for (const o of trip?.options ?? []) if (o.holdId) await this.dropHold(o.holdId);
     await updateDoc(doc(db, 'groupTrips', id), { status: 'cancelled' });
@@ -463,7 +502,7 @@ export class FirebaseStore implements DataStore {
     const trip = this.parts.groupTrips.find((t) => t.id === tripId);
     if (!trip) throw new Error('That invite isn’t here anymore.');
     await setDoc(doc(db, 'groupVotes', `${tripId}__${personId}`), {
-      tripId, personId, inviteeIds: trip.inviteeIds, answers, comment, updatedAt: new Date().toISOString(),
+      tripId, personId, inviteeIds: trip.inviteeIds, hostId: trip.hostId, answers, comment, updatedAt: new Date().toISOString(),
     });
   }
 
@@ -502,7 +541,13 @@ export class FirebaseStore implements DataStore {
     const p: Person = { ...input, email, id: email };
     const { id: _id, ...stored } = p;
     void _id;
-    await setDoc(doc(db, 'people', email), stored);
+    try {
+      await setDoc(doc(db, 'people', email), stored);
+    } catch (e) {
+      // The kids can only add new people; someone already on the list can still be invited.
+      if (!this.isOwner) return p;
+      throw e;
+    }
     return p;
   }
 

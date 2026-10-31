@@ -13,12 +13,26 @@ import type { Booking, GroupTrip, GroupVote, Person, Snapshot } from './types';
 export const PEOPLE: Person[] = [
   { id: 'pete', name: 'Pete', shortName: 'Pete', email: '', phone: '', tier: 'owner' },
   { id: 'trisha', name: 'Trisha', shortName: 'Trisha', email: '', phone: '', tier: 'owner' },
-  { id: 'maddie', name: 'Maddie (example)', shortName: 'Maddie', email: 'maddie@example.com', phone: '', tier: 'kids' },
-  { id: 'tyler', name: 'Tyler (example)', shortName: 'Tyler', email: 'tyler@example.com', phone: '', tier: 'kids' },
+  { id: 'emma', name: 'Emma (example)', shortName: 'Emma', email: 'emma@example.com', phone: '', tier: 'kids' },
+  { id: 'jacob', name: 'Jacob (example)', shortName: 'Jacob', email: 'jacob@example.com', phone: '', tier: 'kids' },
   { id: 'rick', name: 'Rick & Jen Larson (example)', shortName: 'Rick', email: 'rick@example.com', phone: '', tier: 'friends' },
   { id: 'dave', name: 'Dave (example)', shortName: 'Dave', email: 'dave@example.com', phone: '555-0101', tier: 'friends' },
   { id: 'mike', name: 'Mike (example)', shortName: 'Mike', email: 'mike@example.com', phone: '555-0102', tier: 'friends' },
+  { id: 'sophie', name: 'Sophie (example)', shortName: 'Sophie', email: 'sophie@example.com', phone: '555-0103', tier: 'friends', addedBy: 'emma' },
+  { id: 'ava', name: 'Ava (example)', shortName: 'Ava', email: 'ava@example.com', phone: '555-0104', tier: 'friends', addedBy: 'emma' },
 ];
+
+/** One of the kids' plans, waiting for Pete & Trisha's OK. */
+function sampleKidTrip(): GroupTrip {
+  const f1 = nextFriday(addDays(today(), 1));
+  const starts = [addDays(f1, 63), addDays(f1, 70)];
+  return {
+    id: 'gt-emma', title: 'Girls weekend', note: 'Hot tub, board games and the sauna. Bring slippers!', hostId: 'emma',
+    inviteeIds: ['sophie', 'ava'], options: starts.map((s) => ({ start: s, end: addDays(s, 2) })), voteBy: addDays(today(), 10),
+    status: 'proposed', createdAt: new Date().toISOString(),
+    members: { emma: { name: 'Emma', phone: '' }, sophie: { name: 'Sophie', phone: '555-0103' }, ava: { name: 'Ava', phone: '555-0104' } },
+  };
+}
 
 /** A sample group trip mid-vote: dates held, three of four have voted. */
 function sampleGroupTrip(): { trip: GroupTrip; holds: Booking[]; votes: GroupVote[] } {
@@ -31,11 +45,11 @@ function sampleGroupTrip(): { trip: GroupTrip; holds: Booking[]; votes: GroupVot
   }));
   const trip: GroupTrip = {
     id: 'gt-guys', title: "Guys' weekend", note: 'Fishing, cards, steaks on the grill. Bring waders and a sleeping bag.', hostId: 'pete',
-    inviteeIds: ['tyler', 'dave', 'mike', 'rick'], options: holds.map((h) => ({ start: h.start, end: h.end, holdId: h.id })),
+    inviteeIds: ['jacob', 'dave', 'mike', 'rick'], options: holds.map((h) => ({ start: h.start, end: h.end, holdId: h.id })),
     voteBy: addDays(today(), 5), status: 'voting', createdAt: now,
   };
   const v = (personId: string, answers: GroupVote['answers'], comment = ''): GroupVote => ({ id: `gt-guys__${personId}`, tripId: 'gt-guys', personId, answers, comment, updatedAt: now });
-  return { trip, holds, votes: [v('tyler', ['yes', 'maybe', 'no']), v('dave', ['yes', 'yes', 'no'], 'Could only do Saturday night on the second one.'), v('mike', ['maybe', 'yes', 'yes'])] };
+  return { trip, holds, votes: [v('jacob', ['yes', 'maybe', 'no']), v('dave', ['yes', 'yes', 'no'], 'Could only do Saturday night on the second one.'), v('mike', ['maybe', 'yes', 'yes'])] };
 }
 
 function sampleBookings(): Booking[] {
@@ -49,12 +63,12 @@ function sampleBookings(): Booking[] {
   const now = new Date().toISOString();
   const list: Booking[] = [
     {
-      id: 'b-tyler', personId: 'tyler', start: f1, end: addDays(f1, 2), partySize: 4, names: 'Tyler + 3 friends',
+      id: 'b-jacob', personId: 'jacob', start: f1, end: addDays(f1, 2), partySize: 4, names: 'Jacob + 3 friends',
       note: '', status: 'approved', welcomeNote: 'Have fun, bud. Text if you need anything.', doorCode: '',
       createdAt: now, decidedAt: now,
     },
     {
-      id: 'b-maddie', personId: 'maddie', start: f3, end: addDays(f3, 2), partySize: 6, names: 'Maddie + 5 friends',
+      id: 'b-emma', personId: 'emma', start: f3, end: addDays(f3, 2), partySize: 6, names: 'Emma + 5 friends',
       note: 'Girls weekend!', status: 'pending', welcomeNote: '', doorCode: '', createdAt: now,
     },
     {
@@ -66,7 +80,7 @@ function sampleBookings(): Booking[] {
       note: '', status: 'approved', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now,
     },
     {
-      id: 'b-tyler-past', personId: 'tyler', start: addDays(t, -30), end: addDays(t, -28), partySize: 3, names: 'Tyler + 2',
+      id: 'b-jacob-past', personId: 'jacob', start: addDays(t, -30), end: addDays(t, -28), partySize: 3, names: 'Jacob + 2',
       note: '', status: 'approved', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now,
     },
     {
@@ -82,11 +96,11 @@ export function seedSnapshot(): Snapshot {
   return {
     people: PEOPLE,
     bookings: [...sampleBookings(), ...gt.holds],
-    groupTrips: [gt.trip],
+    groupTrips: [gt.trip, sampleKidTrip()],
     groupVotes: gt.votes,
     visits: {
       pete: { firstSeen: `${addDays(today(), -20)}T19:02:00.000Z`, lastSeen: new Date().toISOString() },
-      tyler: { firstSeen: `${addDays(today(), -9)}T01:15:00.000Z`, lastSeen: `${addDays(today(), -2)}T22:40:00.000Z` },
+      jacob: { firstSeen: `${addDays(today(), -9)}T01:15:00.000Z`, lastSeen: `${addDays(today(), -2)}T22:40:00.000Z` },
     },
     guide: GUIDE,
     templates: [

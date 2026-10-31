@@ -1,5 +1,5 @@
 import { RemindMe } from './RemindMe';
-import { GroupInvites } from './GroupVote';
+import { GroupInvites, KidGroupTrips } from './GroupVote';
 import { PhotosLink } from './PhotosHub';
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
@@ -72,6 +72,7 @@ export function Home() {
       )}
 
       {!changing && <GroupInvites />}
+      {!changing && <KidGroupTrips />}
 
       {!changing && trip?.status === 'approved' && (
         <a href={href('/trip')} className="card" style={{ textDecoration: 'none', color: 'inherit', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>

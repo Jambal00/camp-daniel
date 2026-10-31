@@ -2,10 +2,57 @@ import { useEffect, useState } from 'react';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import type { GroupVoteAnswer } from '../../data/types';
-import { fmtDay, fmtRange } from '../../lib/dates';
+import { fmtDay, fmtRange, today } from '../../lib/dates';
+import { GroupTripView } from '../owner/GroupTrips';
 import { ANSWER_LABEL, invitesFor, member, optionBookedBy, votesFor } from '../../lib/groupTrips';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
+
+/** Guest side of /group/:id: the host (one of the kids) gets the results screen; invitees vote. */
+export function GroupRoute({ id }: { id: string }) {
+  const { snap, me } = useSession();
+  const trip = (snap.groupTrips ?? []).find((t) => t.id === id);
+  if (trip && trip.hostId === me.id) return <GroupTripView id={id} />;
+  return <GroupVote id={id} />;
+}
+
+/** Kids: the group trips they're running, and a way to start one. */
+export function KidGroupTrips() {
+  const { snap, me } = useSession();
+  if (me.tier !== 'kids') return null;
+  const mine = (snap.groupTrips ?? []).filter((t) => t.hostId === me.id && t.status !== 'cancelled' && !(t.status === 'locked' && t.options[t.lockedIndex ?? 0].end < today()));
+  const label: Record<string, [string, string]> = {
+    proposed: ['Waiting for an OK', 'orange'],
+    voting: ['Voting', 'orange'],
+    locked: ['Set', 'blue'],
+    declined: ['Not this time', 'grey'],
+  };
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }} aria-label="Your group trips">
+      {mine.map((t) => (
+        <a key={t.id} className="card album-link" href={href(`/group/${t.id}`)}>
+          <span className="meta" style={{ flex: 1 }}>
+            <span className="strong">{t.title}</span>
+            <span className="small muted">
+              {t.status === 'voting' ? `${votesFor(snap, t).length} of ${t.inviteeIds.length} voted` : t.status === 'locked' && t.lockedIndex !== undefined ? fmtRange(t.options[t.lockedIndex].start, t.options[t.lockedIndex].end) : `${t.inviteeIds.length} friends · ${t.options.length} date choices`}
+            </span>
+          </span>
+          <span className={`chip ${label[t.status]?.[1] ?? 'grey'}`}>{label[t.status]?.[0] ?? t.status}</span>
+        </a>
+      ))}
+      <a className="card album-link" href={href('/group/new')}>
+        <span className="ico" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></svg>
+        </span>
+        <span className="meta" style={{ flex: 1 }}>
+          <span className="strong">Plan a group trip</span>
+          <span className="small muted">Invite friends, let them vote on a weekend</span>
+        </span>
+        <span aria-hidden="true">›</span>
+      </a>
+    </section>
+  );
+}
 
 /** Calendar page: "You're invited" for each group trip waiting on this person. */
 export function GroupInvites() {

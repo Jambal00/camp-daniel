@@ -81,23 +81,48 @@ export class LocalStore implements DataStore {
   }
 
   // ---------- group trips ----------
+  private makeHolds(trip: Pick<GroupTrip, 'id' | 'title' | 'hostId' | 'inviteeIds'>, options: { start: string; end: string }[]): Booking[] {
+    const now = new Date().toISOString();
+    return options.map((o) => ({
+      id: uid('b'), personId: trip.hostId, start: o.start, end: o.end, partySize: trip.inviteeIds.length + 1,
+      names: `Held for ${trip.title}`, note: '', status: 'tentative', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now,
+      bookedByOwner: true, groupTripId: trip.id,
+    }));
+  }
+
   async createGroupTrip(input: Parameters<DataStore['createGroupTrip']>[0]) {
     const id = uid('gt');
     const now = new Date().toISOString();
-    const holds: Booking[] = input.options.map((o) => ({
-      id: uid('b'), personId: input.hostId, start: o.start, end: o.end, partySize: input.inviteeIds.length + 1,
-      names: `Held for ${input.title}`, note: '', status: 'tentative', welcomeNote: '', doorCode: '', createdAt: now, decidedAt: now,
-      bookedByOwner: true, groupTripId: id,
-    }));
+    const host = this.state.people.find((p) => p.id === input.hostId);
+    // Kids' plans wait for Pete & Trisha's OK before dates are held or invites go out.
+    const proposed = host?.tier !== 'owner';
+    const holds = proposed ? [] : this.makeHolds({ ...input, id }, input.options);
     const members = Object.fromEntries(
       [input.hostId, ...input.inviteeIds].map((pid) => {
         const p = this.state.people.find((x) => x.id === pid);
         return [pid, { name: p?.shortName ?? 'Someone', phone: p?.phone ?? '' }];
       }),
     );
-    const trip: GroupTrip = { ...input, id, members, options: input.options.map((o, i) => ({ ...o, holdId: holds[i].id })), status: 'voting', createdAt: now };
+    const trip: GroupTrip = {
+      ...input, id, members, options: input.options.map((o, i) => ({ ...o, holdId: holds[i]?.id })), status: proposed ? 'proposed' : 'voting', createdAt: now,
+    };
     this.commit({ ...this.state, bookings: [...this.state.bookings, ...holds], groupTrips: [...(this.state.groupTrips ?? []), trip] });
     return trip;
+  }
+
+  async approveGroupTrip(id: string) {
+    const trip = (this.state.groupTrips ?? []).find((t) => t.id === id);
+    if (!trip || trip.status !== 'proposed') return;
+    const holds = this.makeHolds(trip, trip.options);
+    this.commit({
+      ...this.state,
+      bookings: [...this.state.bookings, ...holds],
+      groupTrips: (this.state.groupTrips ?? []).map((t) => (t.id === id ? { ...t, status: 'voting', options: t.options.map((o, i) => ({ ...o, holdId: holds[i].id })) } : t)),
+    });
+  }
+
+  async declineGroupTrip(id: string) {
+    this.commit({ ...this.state, groupTrips: (this.state.groupTrips ?? []).map((t) => (t.id === id ? { ...t, status: 'declined' } : t)) });
   }
 
   async updateGroupTrip(id: string, patch: Parameters<DataStore['updateGroupTrip']>[1]) {
@@ -117,7 +142,7 @@ export class LocalStore implements DataStore {
       .filter((b) => !(b.groupTripId === id && (b.status === 'blocked' || b.status === 'tentative') && b.id !== keep.holdId))
       .map((b) => {
         if (b.id !== keep.holdId) return b;
-        stay = { ...b, status: 'approved', names: trip.title, partySize: crew.length + 1, crew, welcomeNote: trip.note, decidedAt: now };
+        stay = { ...b, status: 'approved', personId: trip.hostId, names: trip.title, partySize: crew.length + 1, crew, welcomeNote: trip.note, decidedAt: now };
         return stay;
       });
     if (!stay) throw new Error('That date hold is gone');
@@ -140,7 +165,8 @@ export class LocalStore implements DataStore {
 
   async voteGroupTrip(tripId: string, personId: string, answers: GroupVoteAnswer[], comment: string) {
     const id = `${tripId}__${personId}`;
-    const v: GroupVote = { id, tripId, personId, answers, comment, updatedAt: new Date().toISOString() };
+    const trip = (this.state.groupTrips ?? []).find((t) => t.id === tripId);
+    const v: GroupVote = { id, tripId, personId, inviteeIds: trip?.inviteeIds, hostId: trip?.hostId, answers, comment, updatedAt: new Date().toISOString() };
     this.commit({ ...this.state, groupVotes: [...(this.state.groupVotes ?? []).filter((x) => x.id !== id), v] });
   }
 

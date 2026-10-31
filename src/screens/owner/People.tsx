@@ -169,7 +169,7 @@ export function People() {
                     </div>
                   ) : (
                     <div key={p.id} className="list-row" style={{ flexWrap: 'wrap' }}>
-                      <span className="meta"><span className="strong">{p.name}</span><span className="small muted">{[p.email, formatPhone(p.phone)].filter(Boolean).join(' · ') || 'No contact info yet'}</span>{p.id !== me.id && <SignedIn visit={visits[p.id]} />}</span>
+                      <span className="meta"><span className="strong">{p.name}</span><span className="small muted">{[p.email, formatPhone(p.phone)].filter(Boolean).join(' · ') || 'No contact info yet'}</span>{p.addedBy && <span className="small" style={{ color: 'var(--orange-ink)', fontWeight: 600 }}>Added by {snap.people.find((x) => x.id === p.addedBy)?.shortName ?? 'one of the kids'}</span>}{p.id !== me.id && <SignedIn visit={visits[p.id]} />}</span>
                       <span className="row" style={{ gap: 8 }}>
                         <span className="chip grey num" title={`Stays in ${year}`}>{staysThisYear(p.id)}</span>
                         <button className="link-btn" style={{ minHeight: 40 }} onClick={() => startEdit(p.id)}>Edit</button>
