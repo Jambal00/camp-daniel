@@ -4,7 +4,7 @@ import { PhotosLink } from './PhotosHub';
 import { useState } from 'react';
 import { MonthCalendar, type DayLook } from '../../components/MonthCalendar';
 import { toast } from '../../components/Toast';
-import { holding, isDayTaken, isOnStay, nextTripFor, mapsHref, rangeAvailable } from '../../lib/cabin';
+import { greeting, holding, isDayTaken, isOnStay, nextTripFor, mapsHref, rangeAvailable } from '../../lib/cabin';
 import { daysBetween, fmtDay, fmtRange, fmtRangeLong, onDayOf, today, type ISODate } from '../../lib/dates';
 import { go, href, useRoute } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -61,7 +61,7 @@ export function Home() {
     <main className={`screen${sel.start ? ' with-bottom-action' : ''}`}>
       <header style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div className="eyebrow">Camp Daniel · #sconnicabin</div>
-        <h1 className="title">{changing ? 'Pick new dates' : `Hi ${me.shortName}! Come on up.`}</h1>
+        <h1 className="title">{changing ? 'Pick new dates' : `${greeting()}, ${me.shortName}`}</h1>
       </header>
 
       {changing && (

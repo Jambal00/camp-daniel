@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { TierChip } from '../../components/bits';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
-import { holding, needsDecision, personById, smsHref, weekendsAddedBy, weekendsUsed } from '../../lib/cabin';
+import { greeting, holding, needsDecision, personById, smsHref, weekendsAddedBy, weekendsUsed } from '../../lib/cabin';
 import { addDays, fmtRange, fromISO, today } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -52,7 +52,7 @@ export function OwnerHome() {
             {gain > 0 && <div className="sub">Approving the requests below gets you to {used + gain}.</div>}
           </div>
         ) : (
-          <div className="title-sm" style={{ fontSize: 26 }}>Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {me.shortName}</div>
+          <div className="title-sm" style={{ fontSize: 26 }}>{greeting()}, {me.shortName}</div>
         )}
       </div>
 

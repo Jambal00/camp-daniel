@@ -118,6 +118,12 @@ export function needsDecision(snap: Snapshot): Booking[] {
     .sort((a, b) => tier(a) - tier(b) || a.start.localeCompare(b.start));
 }
 
+/** "Good morning" before noon, "Good afternoon" until 5 PM, then "Good evening". */
+export function greeting(now = new Date()): string {
+  const h = now.getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+
 export function personById(people: Person[], id: string): Person | undefined {
   return people.find((p) => p.id === id);
 }
