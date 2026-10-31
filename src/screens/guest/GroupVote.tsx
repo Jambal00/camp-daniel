@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
 import type { GroupVoteAnswer } from '../../data/types';
@@ -40,15 +40,25 @@ export function GroupVote({ id }: { id: string }) {
   const trip = (snap.groupTrips ?? []).find((t) => t.id === id && t.inviteeIds.includes(me.id));
   const votes = trip ? votesFor(snap, trip) : [];
   const mine = votes.find((v) => v.personId === me.id);
-  const [answers, setAnswers] = useState<(GroupVoteAnswer | null)[]>(() => trip?.options.map((_, i) => mine?.answers[i] ?? null) ?? []);
-  const [comment, setComment] = useState(mine?.comment ?? '');
+  // The trip often arrives a moment after the screen opens (e.g. from the invite email),
+  // so start from the saved votes once it's here rather than at first render.
+  const [picked, setAnswers] = useState<(GroupVoteAnswer | null)[] | null>(null);
+  const [typed, setComment] = useState<string | null>(null);
+  const answers = picked ?? trip?.options.map((_, i) => mine?.answers[i] ?? null) ?? [];
+  const comment = typed ?? mine?.comment ?? '';
+  // Give the trip a few seconds to arrive before saying it's gone.
+  const [waited, setWaited] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setWaited(true), 5000);
+    return () => window.clearTimeout(t);
+  }, []);
   const [busy, setBusy] = useState(false);
 
   if (!trip) {
     return (
       <main className="screen">
         <a className="back" href={href('/')}>‹ Calendar</a>
-        <div className="alert">That invite isn't here anymore.</div>
+        {waited ? <div className="alert">That invite isn't here anymore.</div> : <div className="muted">Loading the invite…</div>}
       </main>
     );
   }
