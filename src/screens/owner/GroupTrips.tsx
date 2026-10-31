@@ -167,7 +167,7 @@ export function GroupTripNew() {
 
       <div className="field">
         <div className="section-label"><div className="label">Date choices</div><span className="small muted num">{options.length} of 2–{MAX_OPTIONS}</span></div>
-        <div className="small muted">Open weekends (Fri–Sun). They're held for this trip while people vote.</div>
+        <div className="small muted">Open weekends (Fri–Sun). They show as tentative on the calendar while people vote.</div>
         <div className="row wrap" style={{ gap: 8 }}>
           {weekends.map((f) => {
             const o = { start: f, end: addDays(f, 2) };
@@ -352,7 +352,7 @@ export function GroupTripView({ id }: { id: string }) {
             {trip.status === 'voting' && !bookedBy && !trip.lockRequest &&
               (confirm === i ? (
                 <div className="card inset">
-                  <div className="small">Lock in <b>{fmtRange(o.start, o.end)}</b>? {r.yes.length + r.maybe.length ? `${[...r.yes, ...r.maybe].map(name).join(', ')} get the trip on My trip.` : 'Nobody has said yes yet.'} The other dates open back up.</div>
+                  <div className="small">Lock in <b>{fmtRange(o.start, o.end)}</b>? {r.yes.length + r.maybe.length ? `${[...r.yes, ...r.maybe].map(name).join(', ')} ${r.yes.length + r.maybe.length === 1 ? 'gets' : 'get'} the trip on My trip.` : 'Nobody has said yes yet.'} The other dates open back up.</div>
                   <div className="grid-2">
                     <button className="btn outline" onClick={() => setConfirm(null)}>Not yet</button>
                     <button className="btn" onClick={() => lock(i)}>Lock it in</button>
