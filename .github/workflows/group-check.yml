@@ -1,0 +1,50 @@
+name: Check group trips
+
+# Run by hand. Read-only: prints each open group trip's state (first names only, no emails).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --prefix functions --no-audit --no-fund
+      - name: Check
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          cd functions
+          node -e '
+            const admin = require("firebase-admin");
+            admin.initializeApp({ projectId: "camp-daniel" });
+            const db = admin.firestore();
+            const first = (p, id) => (p && (p.shortName || p.name) || "?").split(/\s+/)[0];
+            (async () => {
+              const out = [];
+              const trips = await db.collection("groupTrips").get();
+              for (const t of trips.docs) {
+                const d = t.data();
+                out.push(`Trip "${d.title}" status=${d.status} options=${(d.options||[]).length} invitees=${(d.inviteeIds||[]).length} voteBy=${d.voteBy||"-"}`);
+                const votes = await db.collection("groupVotes").where("tripId", "==", t.id).get();
+                for (const id of d.inviteeIds || []) {
+                  const p = await db.collection("people").doc(id).get();
+                  const v = votes.docs.find((x) => x.data().personId === id);
+                  const visit = await db.collection("visits").doc(id).get();
+                  const subs = await db.collection("pushSubs").where("personId", "==", id).get();
+                  out.push(`  ${first(p.data())}: inPeople=${p.exists} lowercaseId=${id === id.toLowerCase()} trimmed=${id === id.trim()} signedIn=${visit.exists}${visit.exists ? " lastSeen=" + visit.data().lastSeen : ""} voted=${!!v}${v ? " answers=" + v.data().answers.join("/") : ""} phones=${subs.size}`);
+                }
+                for (const o of d.options || []) {
+                  const h = o.holdId ? await db.collection("bookings").doc(o.holdId).get() : null;
+                  out.push(`  option ${o.start}..${o.end} hold=${h && h.exists ? h.data().status : "missing"}`);
+                }
+              }
+              for (const l of out) console.log(`::notice::${l}`);
+            })().catch((e) => { console.log(`::error::${e.message}`); process.exit(1); });
+          '
