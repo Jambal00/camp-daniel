@@ -82,3 +82,34 @@ ${trip.note ? `<p style="margin:0 0 12px;padding:10px 12px;background:#f3f5f8;bo
 }
 
 module.exports = { inviteEmail, lockedEmail };
+
+/** To the owners: one of the kids wants to plan a group trip. ctx = { host, invitees: [names], link } */
+function proposalEmail(trip, ctx) {
+  const dates = trip.options.map((o) => fmtRange(o.start, o.end));
+  const subject = `${ctx.host} wants to plan ${trip.title}`;
+  const text = [
+    `${ctx.host} wants to plan ${trip.title} at Camp Daniel and invite ${ctx.invitees.join(', ')}.`,
+    ...(trip.note ? ['', trip.note] : []),
+    '',
+    'Weekends to vote on:',
+    ...dates.map((d) => `• ${d}`),
+    '',
+    `OK it (or not): ${ctx.link}`,
+    'Invites go out once you OK it.',
+  ].join('\n');
+  const html = shell({
+    eyebrow: 'Camp Daniel · Needs your OK',
+    heading: `${ctx.host} wants to plan ${trip.title}`,
+    bodyHtml: `<p style="margin:0 0 10px"><b>Inviting:</b> ${esc(ctx.invitees.join(', '))}</p>
+${trip.note ? `<p style="margin:0 0 12px;padding:10px 12px;background:#f3f5f8;border-radius:10px;white-space:pre-wrap">${esc(trip.note)}</p>` : ''}
+<p style="margin:0 0 6px;font-weight:700">Weekends to vote on</p>
+${dates.map((d) => `<div style="padding:8px 12px;margin:0 0 6px;border:1px solid #d3dbe5;border-radius:10px">${esc(d)}</div>`).join('')}
+<p style="margin:8px 0 0;color:#556070">Invites go out once you OK it.</p>`,
+    button: 'Review the plan',
+    link: ctx.link,
+    footer: `Reply to this email to reach ${esc(ctx.host)}.`,
+  });
+  return { subject, text, html };
+}
+
+module.exports.proposalEmail = proposalEmail;

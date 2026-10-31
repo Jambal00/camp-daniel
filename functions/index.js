@@ -384,7 +384,7 @@ exports.noonCodeReady = functions.pubsub.schedule('0 12 * * *').timeZone(TZ).onR
 });
 
 // ---------- Group trips ----------
-const { inviteEmail, lockedEmail } = require('./groupEmails');
+const { inviteEmail, lockedEmail, proposalEmail } = require('./groupEmails');
 
 async function personInfo(db, id) {
   const s = await db.collection('people').doc(id).get();
@@ -392,12 +392,74 @@ async function personInfo(db, id) {
   return { email: d.email || (String(id).includes('@') ? id : ''), short: d.shortName || (d.name || 'Someone').split(/\s+/)[0] };
 }
 
-// Invites: an email to each person (they may not have the app yet) plus a notification.
-exports.groupTripInvite = functions.firestore.document('groupTrips/{id}').onCreate(async (snap, ctx) => {
-  const t = snap.data() || {};
-  const db = admin.firestore();
+/** Remove a trip's date holds (the stays and their calendar entries). */
+async function dropHolds(db, t, keepId) {
+  for (const o of t.options || []) {
+    if (!o.holdId || o.holdId === keepId) continue;
+    const ref = db.collection('bookings').doc(o.holdId);
+    const h = await ref.get();
+    if (h.exists && ['tentative', 'blocked'].includes(h.data().status)) await ref.delete();
+    await db.collection('busy').doc(o.holdId).delete().catch(() => undefined);
+  }
+}
+
+/** The moment it is `hh:mm` in Chicago on a YYYY-MM-DD day. */
+function chicagoTime(day, hh, mm = 0, ss = 0) {
+  const [y, m, d] = day.split('-').map(Number);
+  for (const off of [5, 6]) {
+    const t = new Date(Date.UTC(y, m - 1, d, hh + off, mm, ss));
+    const h = Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', hourCycle: 'h23' }).format(t));
+    if (h === hh) return t;
+  }
+  return new Date(Date.UTC(y, m - 1, d, hh + 6, mm, ss));
+}
+
+/** Book the winning date for a kid-hosted trip: the stay, its calendar entry and door-code record. */
+async function lockForHost(db, id, t) {
+  const { index, crew } = t.lockRequest;
+  const opt = (t.options || [])[index];
+  if (!opt || !opt.holdId) throw new Error('No date hold for that choice');
+  const ref = db.collection('bookings').doc(opt.holdId);
+  const h = await ref.get();
+  if (!h.exists) throw new Error('Date hold is gone');
+  // Someone else's approved stay or a block on those days wins.
+  const clash = (await db.collection('busy').get()).docs.find((d) => d.id !== opt.holdId && !d.data().tentative && d.data().start < opt.end && opt.start < d.data().end);
+  if (clash) {
+    await db.collection('groupTrips').doc(id).update({ lockRequest: admin.firestore.FieldValue.delete() });
+    await notify(db, [t.hostId], 'groupTrips', { title: `${t.title}: those dates got booked`, body: 'Pick another weekend from the vote.', url: APP(`/group/${id}`), tag: `group-${id}` });
+    return;
+  }
+  const people = (crew || []).filter((p) => (t.inviteeIds || []).includes(p));
+  await ref.update({
+    status: 'approved', personId: t.hostId, names: t.title, partySize: people.length + 1, crew: people,
+    welcomeNote: t.note || '', decidedAt: new Date().toISOString(),
+  });
+  await db.collection('busy').doc(opt.holdId).set({ start: opt.start, end: opt.end });
+  const settings = (await db.collection('settings').doc('cabin').get()).data() || {};
+  const secrets = (await db.collection('secrets').doc('cabin').get()).data() || {};
+  await db.collection('access').doc(opt.holdId).set({
+    email: t.hostId, crew: people, doorCode: '', wifiNetwork: settings.wifiNetwork || '', wifiPassword: secrets.wifiPassword || '',
+    from: admin.firestore.Timestamp.fromDate(chicagoTime(opt.start, 12)),
+    until: admin.firestore.Timestamp.fromDate(chicagoTime(opt.end, 23, 59, 59)),
+  });
+  await dropHolds(db, t, opt.holdId);
+  await db.collection('groupTrips').doc(id).update({ status: 'locked', lockedIndex: index, bookingId: opt.holdId, lockRequest: admin.firestore.FieldValue.delete() });
+}
+
+/** Is this person one of the owners? */
+async function isOwnerId(db, id) {
+  return (await ownerIds(db)).includes(String(id).toLowerCase());
+}
+/** Where a trip's host manages it: owners in the owner area, the kids on their own page. */
+async function hostLink(db, t, id) {
+  return APP((await isOwnerId(db, t.hostId)) ? `/owner/group/${id}` : `/group/${id}`);
+}
+
+/** Invites: an email to each person (they may not have the app yet) plus a notification. */
+async function sendGroupInvites(db, id, t) {
   const host = await personInfo(db, t.hostId);
-  const link = APP(`/group/${ctx.params.id}`);
+  const link = APP(`/group/${id}`);
+  const ctx = { params: { id } };
   for (const pid of t.inviteeIds || []) {
     try {
       await once(db, `group-invite-${ctx.params.id}-${pid}`, async () => {
@@ -416,17 +478,77 @@ exports.groupTripInvite = functions.firestore.document('groupTrips/{id}').onCrea
       console.error('Group invite failed', ctx.params.id, pid, e);
     }
   }
+}
+
+exports.groupTripInvite = functions.firestore.document('groupTrips/{id}').onCreate(async (snap, ctx) => {
+  const t = snap.data() || {};
+  const db = admin.firestore();
+  const id = ctx.params.id;
+  try {
+    if (t.status === 'voting') return await sendGroupInvites(db, id, t);
+    if (t.status === 'proposed') {
+      // One of the kids wants to plan a trip: ask the owners for an OK.
+      const host = await personInfo(db, t.hostId);
+      const owners = await ownerIds(db);
+      const link = APP(`/owner/group/${id}`);
+      const names = [];
+      for (const pid of t.inviteeIds || []) names.push((await personInfo(db, pid)).short);
+      await once(db, `group-proposed-${id}`, async () => {
+        await notify(db, owners, 'request', {
+          title: `${host.short} wants to plan ${t.title}`,
+          body: `Inviting ${names.join(', ')} · ${t.options.length} weekends. Tap to OK it.`,
+          url: link,
+          tag: `group-${id}`,
+        });
+        const emailTo = [];
+        for (const o of owners) if (await wants(db, o, 'requestEmail')) emailTo.push(o);
+        if (emailTo.length) await sendMail({ to: emailTo, replyTo: host.email || undefined, ...proposalEmail(t, { host: host.short, invitees: names, link }) });
+      });
+    }
+  } catch (e) {
+    console.error('Group trip create failed', id, e);
+  }
 });
 
 // Locked in or called off.
 exports.groupTripDecided = functions.firestore.document('groupTrips/{id}').onUpdate(async (change, ctx) => {
   const b = change.before.data() || {};
   const t = change.after.data() || {};
-  if (b.status === t.status) return;
   const db = admin.firestore();
   const id = ctx.params.id;
+  // A kid host picked the winner: book it here (guests can't write stays or door-code records).
+  if (t.status === 'voting' && t.lockRequest && !b.lockRequest) {
+    try {
+      await lockForHost(db, id, t);
+    } catch (e) {
+      console.error('Group lock failed', id, e);
+    }
+    return;
+  }
+  if (b.status === t.status) return;
   try {
     const host = await personInfo(db, t.hostId);
+    if (b.status === 'proposed' && t.status === 'voting') {
+      await sendGroupInvites(db, id, t);
+      await notify(db, [t.hostId], 'groupTrips', { title: `${t.title} is a go!`, body: 'Pete & Trisha OK’d it. Your invites are on their way.', url: APP(`/group/${id}`), tag: `group-${id}` });
+      return;
+    }
+    if (t.status === 'declined') {
+      await notify(db, [t.hostId], 'groupTrips', { title: `${t.title}: not this time`, body: 'Pete & Trisha can’t make those dates work. Talk with them about other weekends.', url: APP(`/group/${id}`), tag: `group-${id}` });
+      return;
+    }
+    if (t.status === 'cancelled') await dropHolds(db, t);
+    if (t.status === 'cancelled' && b.status === 'proposed') return; // invites never went out
+    if (t.status === 'locked' && !(await isOwnerId(db, t.hostId))) {
+      const opt = t.options[t.lockedIndex];
+      const stay = t.bookingId ? (await db.collection('bookings').doc(t.bookingId).get()).data() : null;
+      await notify(db, await ownerIds(db), 'request', {
+        title: `${host.short} locked in ${t.title}`,
+        body: `${fmtShort(opt.start, opt.end)} · ${((stay && stay.crew) || []).length + 1} going. Add a door code when you can.`,
+        url: APP(`/owner/approve/${t.bookingId}`),
+        tag: `group-${id}`,
+      });
+    }
     if (t.status === 'locked' && t.lockedIndex !== undefined) {
       const opt = t.options[t.lockedIndex];
       const stay = t.bookingId ? (await db.collection('bookings').doc(t.bookingId).get()).data() : null;
@@ -471,10 +593,11 @@ exports.groupTripVote = functions.firestore.document('groupVotes/{id}').onWrite(
     const total = (t.inviteeIds || []).length;
     const who = (await personInfo(db, v.personId)).short;
     const updated = change.before.exists;
-    await notify(db, await ownerIds(db), 'groupVotes', {
+    const kidHost = !(await isOwnerId(db, t.hostId));
+    await notify(db, kidHost ? [t.hostId] : await ownerIds(db), 'groupVotes', {
       title: n === total && !updated ? `Everyone's voted on ${t.title}` : `${who} ${updated ? 'changed their votes' : 'voted'} on ${t.title}`,
       body: n === total ? 'Tap to see the results and lock in a date.' : `${n} of ${total} in.`,
-      url: APP(`/owner/group/${v.tripId}`),
+      url: await hostLink(db, t, v.tripId),
       tag: `group-votes-${v.tripId}`,
     });
   } catch (e) {
@@ -501,7 +624,7 @@ exports.groupTripDeadlines = functions.pubsub.schedule('5 9 * * *').timeZone(TZ)
       }
       if (t.voteBy && t.voteBy <= yesterday) {
         await once(db, `group-closed-${d.id}`, async () =>
-          notify(db, await ownerIds(db), 'groupVotes', { title: `Voting's closed: ${t.title}`, body: 'Tap to pick the date and lock it in.', url: APP(`/owner/group/${d.id}`), tag: `group-votes-${d.id}` }),
+          notify(db, (await isOwnerId(db, t.hostId)) ? await ownerIds(db) : [t.hostId], 'groupVotes', { title: `Voting's closed: ${t.title}`, body: 'Tap to pick the date and lock it in.', url: await hostLink(db, t, d.id), tag: `group-votes-${d.id}` }),
         );
       }
     } catch (e) {
