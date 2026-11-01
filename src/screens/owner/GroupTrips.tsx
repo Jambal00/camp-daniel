@@ -208,6 +208,61 @@ export function GroupTripNew() {
   );
 }
 
+/** A locked trip: who's going, and the host can check people on or off the invite list. */
+function WhosGoing({ trip }: { trip: GroupTrip }) {
+  const { snap, isOwner, previewing } = useSession();
+  const stay = snap.bookings.find((b) => b.id === trip.bookingId);
+  const crew = trip.crewRequest ?? stay?.crew ?? [];
+  const [editing, setEditing] = useState(false);
+  const [picked, setPicked] = useState<string[]>(crew);
+  const [busy, setBusy] = useState(false);
+  const opt = trip.options[trip.lockedIndex ?? 0];
+  const name = (pid: string) => member(snap, trip, pid).name;
+  const save = async () => {
+    if (previewing) return toast('Guest preview: nothing was changed.');
+    setBusy(true);
+    try {
+      await store.setGroupCrew(trip.id, picked);
+      const added = picked.filter((p) => !crew.includes(p));
+      toast(added.length ? `Saved. ${added.map(name).join(', ')} ${added.length === 1 ? 'gets' : 'get'} the trip and an "It's set!" message.` : 'Saved.');
+      setEditing(false);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Couldn’t save that. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="card" aria-label="Who's going">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div className="strong">Going: {fmtRange(opt.start, opt.end)}</div>
+        {!editing && <button className="link-btn" style={{ minHeight: 32 }} onClick={() => { setPicked(crew); setEditing(true); }}>Edit who's going</button>}
+      </div>
+      {editing ? (
+        <>
+          <div className="small muted">Check anyone from the invite list who's coming. People you add see the trip on My trip and get an "It's set!" message.</div>
+          <div className="card tight">
+            {trip.inviteeIds.map((pid) => (
+              <label key={pid} className="list-row check-row">
+                <input type="checkbox" checked={picked.includes(pid)} onChange={(e) => setPicked(e.target.checked ? [...picked, pid] : picked.filter((x) => x !== pid))} />
+                <span className="strong" style={{ flex: 1 }}>{name(pid)}</span>
+              </label>
+            ))}
+          </div>
+          <div className="grid-2">
+            <button className="btn outline" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
+            <button className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+          </div>
+        </>
+      ) : (
+        <div className="small muted">{[trip.hostId, ...crew].map(name).join(', ')} · {crew.length + 1} going</div>
+      )}
+      {!editing && trip.bookingId && isOwner && <a className="btn outline" href={href(`/owner/approve/${trip.bookingId}`)}>Add the door code</a>}
+      {!editing && !isOwner && <a className="btn outline" href={href('/trip')}>Go to My trip</a>}
+    </section>
+  );
+}
+
 /** Owner: who can make which date, then lock one in. */
 export function GroupTripView({ id }: { id: string }) {
   const { snap, isOwner, previewing } = useSession();
@@ -314,14 +369,7 @@ export function GroupTripView({ id }: { id: string }) {
       {trip.status === 'declined' && <div className="callout">{isOwner ? 'You turned this one down.' : 'Pete & Trisha said not this time. Talk with them about other dates.'}</div>}
       {trip.lockRequest && trip.status === 'voting' && <div className="callout">Locking in {fmtRange(trip.options[trip.lockRequest.index].start, trip.options[trip.lockRequest.index].end)}…</div>}
 
-      {trip.status === 'locked' && trip.lockedIndex !== undefined && (
-        <div className="card">
-          <div className="strong">Going: {fmtRange(trip.options[trip.lockedIndex].start, trip.options[trip.lockedIndex].end)}</div>
-          <div className="small muted">{[...t[trip.lockedIndex].yes, ...t[trip.lockedIndex].maybe].map(name).join(', ') || 'Just you so far'}</div>
-          {trip.bookingId && isOwner && <a className="btn outline" href={href(`/owner/approve/${trip.bookingId}`)}>Add the door code</a>}
-          {!isOwner && <a className="btn outline" href={href('/trip')}>Go to My trip</a>}
-        </div>
-      )}
+      {trip.status === 'locked' && trip.lockedIndex !== undefined && <WhosGoing trip={trip} />}
 
       {trip.options.map((o, i) => {
         const r = t[i];

@@ -110,6 +110,13 @@ export class LocalStore implements DataStore {
     return trip;
   }
 
+  async setGroupCrew(id: string, crew: string[]) {
+    const trip = (this.state.groupTrips ?? []).find((t) => t.id === id);
+    if (!trip?.bookingId) return;
+    const people = crew.filter((p) => trip.inviteeIds.includes(p));
+    this.commit({ ...this.state, bookings: this.state.bookings.map((b) => (b.id === trip.bookingId ? { ...b, crew: people, partySize: people.length + 1 } : b)) });
+  }
+
   async approveGroupTrip(id: string) {
     const trip = (this.state.groupTrips ?? []).find((t) => t.id === id);
     if (!trip || trip.status !== 'proposed') return;

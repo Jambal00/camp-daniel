@@ -451,6 +451,18 @@ export class FirebaseStore implements DataStore {
     await deleteDoc(doc(db, 'bookings', bookingId)).catch(() => undefined);
   }
 
+  async setGroupCrew(id: string, crew: string[]) {
+    const trip = this.parts.groupTrips.find((t) => t.id === id) ?? this.parts.hostTrips.find((t) => t.id === id);
+    if (!trip?.bookingId) throw new Error('That trip isn’t locked in yet.');
+    const people = crew.filter((p) => trip.inviteeIds.includes(p));
+    if (!this.isOwner) {
+      // A kid host: the server updates the stay and its door-code record.
+      await updateDoc(doc(db, 'groupTrips', id), { crewRequest: people });
+      return;
+    }
+    await this.updateBooking(trip.bookingId, { crew: people, partySize: people.length + 1 });
+  }
+
   async approveGroupTrip(id: string) {
     const trip = this.parts.groupTrips.find((t) => t.id === id);
     if (!trip || trip.status !== 'proposed') throw new Error('That plan isn’t waiting for an OK anymore.');

@@ -24,6 +24,8 @@ export interface DataStore {
   updateGroupTrip(id: string, patch: Partial<Pick<GroupTrip, 'title' | 'note' | 'inviteeIds' | 'voteBy'>>): Promise<void>;
   lockGroupTrip(id: string, index: number, crew: string[]): Promise<Booking>;
   cancelGroupTrip(id: string): Promise<void>;
+  /** After it's locked in: change who's going (from the invite list). */
+  setGroupCrew(id: string, crew: string[]): Promise<void>;
   /** Owners: OK a kid's group trip plan (holds the dates, sends the invites), or turn it down. */
   approveGroupTrip(id: string): Promise<void>;
   declineGroupTrip(id: string): Promise<void>;

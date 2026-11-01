@@ -77,6 +77,8 @@ export interface GroupTrip {
   status: 'proposed' | 'voting' | 'locked' | 'cancelled' | 'declined';
   /** A kid host picked the winner; the server books it (they can't write stays themselves). */
   lockRequest?: { index: number; crew: string[] };
+  /** A kid host changed who's going on a locked trip; the server applies it. */
+  crewRequest?: string[];
   lockedIndex?: number;
   /** The stay created when it's locked in. */
   bookingId?: string;

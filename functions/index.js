@@ -271,6 +271,11 @@ exports.notifyBookingChange = functions.firestore.document('bookings/{id}').onUp
   try {
     const owners = await ownerIds(db);
     const isGuest = !owners.includes(String(a.personId).toLowerCase());
+    // Someone added to a group trip after it was locked in: send them "It's set!".
+    const added = (a.crew || []).filter((p) => !(b.crew || []).includes(p));
+    if (a.groupTripId && a.status === 'approved' && b.status === 'approved' && added.length) {
+      await welcomeToCrew(db, a.groupTripId, a, added);
+    }
     if (b.status === 'pending' && a.status === 'approved' && isGuest) {
       await once(db, `approved-${id}`, () =>
         notify(db, [a.personId], 'approved', {
@@ -446,6 +451,24 @@ async function lockForHost(db, id, t) {
   await db.collection('groupTrips').doc(id).update({ status: 'locked', lockedIndex: index, bookingId: opt.holdId, lockRequest: admin.firestore.FieldValue.delete() });
 }
 
+/** "It's set!" (notification + email) for people added to a locked group trip. */
+async function welcomeToCrew(db, tripId, stay, added) {
+  const tSnap = await db.collection('groupTrips').doc(tripId).get();
+  if (!tSnap.exists) return;
+  const t = tSnap.data();
+  const opt = t.options[t.lockedIndex ?? 0];
+  const host = await personInfo(db, t.hostId);
+  const going = [host.short];
+  for (const pid of stay.crew || []) going.push((await personInfo(db, pid)).short);
+  for (const pid of added) {
+    await once(db, `group-locked-${tripId}-${pid}-on`, async () => {
+      await notify(db, [pid], 'groupTrips', { title: `You're on ${t.title}!`, body: `${fmtShort(opt.start, opt.end)}. Tap for your trip.`, url: APP('/trip'), tag: `group-${tripId}` });
+      const me = await personInfo(db, pid);
+      if (me.email) await sendMail({ to: me.email, replyTo: host.email || undefined, ...lockedEmail(t, opt, { host: host.short, going, link: APP('/trip') }) });
+    });
+  }
+}
+
 /** Is this person one of the owners? */
 async function isOwnerId(db, id) {
   return (await ownerIds(db)).includes(String(id).toLowerCase());
@@ -522,6 +545,18 @@ exports.groupTripDecided = functions.firestore.document('groupTrips/{id}').onUpd
       await lockForHost(db, id, t);
     } catch (e) {
       console.error('Group lock failed', id, e);
+    }
+    return;
+  }
+  // A kid host changed who's going on a locked trip.
+  if (t.status === 'locked' && t.crewRequest && JSON.stringify(t.crewRequest) !== JSON.stringify(b.crewRequest)) {
+    try {
+      const people = t.crewRequest.filter((p) => (t.inviteeIds || []).includes(p));
+      await db.collection('bookings').doc(t.bookingId).update({ crew: people, partySize: people.length + 1 });
+      await db.collection('access').doc(t.bookingId).update({ crew: people }).catch(() => undefined);
+      await db.collection('groupTrips').doc(id).update({ crewRequest: admin.firestore.FieldValue.delete() });
+    } catch (e) {
+      console.error('Group crew change failed', id, e);
     }
     return;
   }

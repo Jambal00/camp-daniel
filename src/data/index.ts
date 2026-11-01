@@ -28,6 +28,7 @@ export const store: DataStore = {
   updateGroupTrip: (id, p) => backend().updateGroupTrip(id, p),
   lockGroupTrip: (id, i, crew) => backend().lockGroupTrip(id, i, crew),
   cancelGroupTrip: (id) => backend().cancelGroupTrip(id),
+  setGroupCrew: (id, crew) => backend().setGroupCrew(id, crew),
   approveGroupTrip: (id) => backend().approveGroupTrip(id),
   declineGroupTrip: (id) => backend().declineGroupTrip(id),
   voteGroupTrip: (t, p, a, c) => backend().voteGroupTrip(t, p, a, c),
