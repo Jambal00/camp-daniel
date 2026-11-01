@@ -1,0 +1,57 @@
+name: Add people to a locked group trip
+
+# Run by hand. Adds invitees (by first name) to a locked group trip's stay, so it shows on
+# their My trip and they get the door code. Prints first names only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      trip:
+        description: Part of the trip's name (e.g. Big Al)
+        required: true
+      names:
+        description: First names to add, comma-separated (must be on the invite list)
+        required: true
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --prefix functions --no-audit --no-fund
+      - name: Add
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TRIP: ${{ inputs.trip }}
+          NAMES: ${{ inputs.names }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          cd functions
+          node -e '
+            const admin = require("firebase-admin");
+            admin.initializeApp({ projectId: "camp-daniel" });
+            const db = admin.firestore();
+            (async () => {
+              const want = process.env.NAMES.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+              const trips = (await db.collection("groupTrips").where("status", "==", "locked").get()).docs.filter((d) => d.data().title.toLowerCase().includes(process.env.TRIP.trim().toLowerCase()));
+              if (trips.length !== 1) throw new Error(`Found ${trips.length} locked trips matching that name`);
+              const t = trips[0].data();
+              const add = [];
+              for (const id of t.inviteeIds) {
+                const p = (await db.collection("people").doc(id).get()).data() || {};
+                const first = (p.shortName || p.name || "").split(/\s+/)[0].toLowerCase();
+                if (want.includes(first)) add.push({ id, first: p.shortName || first });
+              }
+              if (add.length !== want.length) throw new Error(`Matched ${add.length} of ${want.length} names on the invite list`);
+              const bRef = db.collection("bookings").doc(t.bookingId);
+              const b = (await bRef.get()).data();
+              const crew = Array.from(new Set([...(b.crew || []), ...add.map((a) => a.id)]));
+              await bRef.update({ crew, partySize: crew.length + 1 });
+              await db.collection("access").doc(t.bookingId).update({ crew });
+              console.log(`::notice::"${t.title}": added ${add.map((a) => a.first).join(", ")}. Now ${crew.length + 1} going.`);
+            })().catch((e) => { console.log(`::error::${e.message}`); process.exit(1); });
+          '
