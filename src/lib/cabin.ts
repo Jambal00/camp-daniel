@@ -78,6 +78,12 @@ export function changeRequestFor(stay: Booking, bookings: Booking[]): Booking | 
   return bookings.find((b) => b.replaces === stay.id && b.status === 'pending');
 }
 
+/** Pete or Trisha is on this stay (they booked it or are in its crew): no need to tell the neighbors. */
+export function ownersOnStay(b: Booking, people: Person[]): boolean {
+  const owners = new Set(people.filter((p) => p.tier === 'owner').map((p) => p.id));
+  return owners.has(b.personId) || !!b.crew?.some((id) => owners.has(id));
+}
+
 /** On this stay: the person who booked it, or part of a group trip's crew. */
 export function isOnStay(b: Booking, personId: string): boolean {
   return b.personId === personId || !!b.crew?.includes(personId);

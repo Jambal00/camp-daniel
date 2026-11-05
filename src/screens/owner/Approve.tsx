@@ -3,7 +3,7 @@ import { toast } from '../../components/Toast';
 import { TierChip } from '../../components/bits';
 import { Icon } from '../../components/Icon';
 import { store } from '../../data';
-import { fillTemplate, mailHref, personById, rangeAvailable, smsHref, tentativeOverlaps } from '../../lib/cabin';
+import { fillTemplate, mailHref, ownersOnStay, personById, rangeAvailable, smsHref, tentativeOverlaps } from '../../lib/cabin';
 import { fmtDay, fmtRange, fmtRangeLong, today } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -109,7 +109,7 @@ export function Approve({ id }: { id: string }) {
         </div>
       </div>
 
-      {b.status === 'approved' && (
+      {b.status === 'approved' && !ownersOnStay(b, snap.people) && (
         <div className="field">
           <div className="label">4 · Neighbors</div>
           <label className="check" style={{ borderBottom: 0 }}>

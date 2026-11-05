@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { TierChip } from '../../components/bits';
 import { toast } from '../../components/Toast';
 import { store } from '../../data';
-import { greeting, holding, needsDecision, personById, smsHref, weekendsAddedBy, weekendsUsed } from '../../lib/cabin';
+import { greeting, holding, needsDecision, ownersOnStay, personById, smsHref, weekendsAddedBy, weekendsUsed } from '../../lib/cabin';
 import { addDays, fmtRange, fromISO, today } from '../../lib/dates';
 import { href } from '../../lib/router';
 import { useSession } from '../../lib/session';
@@ -141,22 +141,27 @@ export function OwnerHome() {
               {upcoming.map((b) => {
                 const p = personById(snap.people, b.personId);
                 const todo = !b.doorCode ? 'Add door code' : '';
+                const usThere = ownersOnStay(b, snap.people);
                 return (
                   <a key={b.id} className="list-row" href={href(`/owner/approve/${b.id}`)}>
                     <span className="meta">
                       <span className="strong">{b.names || p?.name}</span>
                       <span className="small muted">{fmtRange(b.start, b.end)} · {b.partySize} people</span>
-                      <span className="small" style={{ fontWeight: 600, color: b.neighborsToldOn ? 'var(--teal)' : 'var(--orange-ink)' }}>
-                        {b.neighborsToldOn ? '✓ Neighbors told' : 'Neighbors not told yet'}
-                      </span>
+                      {!usThere && (
+                        <span className="small" style={{ fontWeight: 600, color: b.neighborsToldOn ? 'var(--teal)' : 'var(--orange-ink)' }}>
+                          {b.neighborsToldOn ? '✓ Neighbors told' : 'Neighbors not told yet'}
+                        </span>
+                      )}
                     </span>
                     {todo ? <span className="chip orange">{todo}</span> : <span className="chip blue">Ready</span>}
                   </a>
                 );
               })}
             </div>
-            {upcoming[0] && (() => {
-              const next = upcoming[0];
+            {(() => {
+              // The next stay you two aren't part of: you don't text the neighbors about your own trips.
+              const next = upcoming.find((b) => !ownersOnStay(b, snap.people));
+              if (!next) return null;
               const who = next.names || personById(snap.people, next.personId)?.name;
               // Once the neighbors are told, the small line on the stay card is enough.
               return next.neighborsToldOn ? null : (
